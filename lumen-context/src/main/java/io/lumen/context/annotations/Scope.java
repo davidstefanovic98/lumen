@@ -1,4 +1,4 @@
-package io.lumen.annotations;
+package io.lumen.context.annotations;
 
 import io.lumen.core.component.ScopeType;
 

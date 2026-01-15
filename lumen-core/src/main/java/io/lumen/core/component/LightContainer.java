@@ -1,7 +1,12 @@
 package io.lumen.core.component;
 
 import io.lumen.core.component.processor.LightProcessor;
+import io.lumen.core.conditional.ConditionalContext;
+import io.lumen.core.conditional.ConditionalEvaluator;
+import io.lumen.core.conditional.DefaultConditionalContext;
 import io.lumen.core.context.ApplicationContext;
+import io.lumen.core.exception.MultipleLightFoundException;
+import io.lumen.core.exception.NoLightFoundException;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -11,111 +16,89 @@ import java.util.*;
  * Orchestrates registration, resolution, and instantiation.
  */
 public class LightContainer {
-    private final Map<String, LightInstance> lights;
+    private final Map<String, LightInstance> lights = new LinkedHashMap<>();
+    private final Map<String, LightDefinition> registeredDefinitions = new LinkedHashMap<>();
     private final LightAnalyzer analyzer;
     private final LightResolver resolver;
     private final LightInstantiator instantiator;
-    private boolean initialized;
     private ApplicationContext context;
+    private boolean initialized;
 
-
-    /**
-     * Create a container with default components (no annotation support).
-     */
     public LightContainer(ApplicationContext context, LightAnalyzer analyzer, LightInstantiator instantiator) {
         this(analyzer, new LightResolver(), instantiator);
         this.context = context;
     }
 
-    /**
-     * Create a container with custom components (extension point for context module).
-     */
     public LightContainer(LightAnalyzer analyzer, LightResolver resolver, LightInstantiator instantiator) {
-        this.lights = new LinkedHashMap<>();
         this.analyzer = analyzer;
         this.resolver = resolver;
         this.instantiator = instantiator;
-        this.initialized = false;
     }
 
-    /**
-     * Register a class to be managed as a light.
-     * Uses simple class name as the light name.
-     */
     public void register(Class<?> type) {
         register(type, type.getSimpleName());
     }
 
-    /**
-     * Register a class with a specific name.
-     */
     public void register(Class<?> type, String name) {
-        checkNotInitialized();
-
-        LightDefinition definition = LightDefinition.fromClass(type, name);
-        registerDefinition(definition);
+        LightDefinition def = LightDefinition.fromClass(type, name);
+        registerDefinition(def);
     }
 
-    /**
-     * Register a pre-created instance.
-     */
     public void registerInstance(String name, Object instance) {
-        checkNotInitialized();
-
-        LightDefinition definition = LightDefinition.fromInstance(name, instance);
-        registerDefinition(definition);
+        LightDefinition def = LightDefinition.fromInstance(name, instance);
+        registerDefinition(def);
     }
 
-    /**
-     * Register a light created by a factory.
-     */
     public void registerFactory(String name, Class<?> type, LightFactory factory) {
-        checkNotInitialized();
-
-        LightDefinition definition = LightDefinition.fromFactory(name, type, factory);
-        registerDefinition(definition);
+        LightDefinition def = LightDefinition.fromFactory(name, type, factory);
+        registerDefinition(def);
     }
 
     public LightDefinition registerFactory(String name, Method method, LightFactory factory, Class<?> type) {
-        checkNotInitialized();
         LightDefinition def = LightDefinition.fromFactory(name, method, factory, type);
         registerDefinition(def);
         return def;
     }
 
-    /**
-     * Internal method to register a definition.
-     */
     protected void registerDefinition(LightDefinition definition) {
-        if (definition.getCondition() != null && !definition.getCondition().get()) {
+        if (registeredDefinitions.containsKey(definition.getName())) {
             return;
         }
-
-        if (lights.containsKey(definition.getName())) {
-            throw new IllegalStateException(
-                    "Light with name '" + definition.getName() + "' already registered"
-            );
-        }
-
-        LightMetadata metadata = analyzer.analyze(definition);
-
-        LightInstance light = new LightInstance(metadata);
-
-        lights.put(definition.getName(), light);
+        registeredDefinitions.put(definition.getName(), definition);
     }
 
+    /**
+     * Initialize or refresh the container.
+     * Clears old instances and re-instantiates eager singletons.
+     */
     public void initialize() {
-        if (initialized) {
-            throw new IllegalStateException("Container already initialized");
+        lights.clear();
+        for (LightDefinition def : registeredDefinitions.values()) {
+            LightMetadata metadata = analyzer.analyze(def);
+
+            if (def.getProfile() != null && !context.getEnvironment().isProfileActive(def.getProfile())) {
+                continue;
+            }
+
+            ConditionalContext ctx = new DefaultConditionalContext(context.getEnvironment(), this, def);
+
+            if (!new ConditionalEvaluator().shouldInstantiate(metadata, ctx)) {
+                continue;
+            }
+
+            LightInstance instance = new LightInstance(metadata);
+            lights.put(def.getName(), instance);
         }
 
+        // Resolve dependencies
         for (LightInstance light : lights.values()) {
             resolver.resolve(light, lights);
         }
 
+        // Instantiate eager singletons
         for (LightInstance light : lights.values()) {
-            if (!light.getMetadata().getDefinition().isLazy() &&
-                    light.getMetadata().getDefinition().getScope() == ScopeType.SINGLETON) {
+            LightDefinition def = light.getMetadata().getDefinition();
+            if (!def.isLazy() && def.getScope() == ScopeType.SINGLETON) {
                 instantiator.instantiate(light, this);
             }
         }
@@ -123,111 +106,57 @@ public class LightContainer {
         initialized = true;
     }
 
-    /**
-     * Get a light by type.
-     * Throws if no matching light found or multiple lights match.
-     */
+    public void refresh() {
+        initialize();
+    }
+
     public <T> T getLight(Class<T> type) {
         checkInitialized();
 
         List<LightInstance> matches = new ArrayList<>();
-
         for (LightInstance light : lights.values()) {
             if (type.isAssignableFrom(light.getType())) matches.add(light);
         }
 
         if (matches.isEmpty())
-            throw new NoSuchElementException("No light found for type: " + type.getName());
+            throw new NoLightFoundException("No light found for type: " + type.getName());
         if (matches.size() > 1)
-            throw new IllegalStateException(
-                "Multiple lights found for type: " + type.getName() + ". Use getLight(String) instead."
-        );
+            throw new MultipleLightFoundException(
+                    "Multiple lights found for type: " + type.getName() + ". Use getLight(String) instead."
+            );
 
         return type.cast(getOrInstantiate(matches.getFirst()));
     }
 
-    /**
-     * Get a light by name.
-     */
     @SuppressWarnings("unchecked")
     public <T> T getLight(String name) {
         checkInitialized();
 
         LightInstance light = lights.get(name);
         if (light == null) {
-            throw new NoSuchElementException(
-                    "No light found with name: " + name
-            );
+            throw new NoSuchElementException("No light found with name: " + name);
         }
 
         return (T) getOrInstantiate(light);
     }
 
-    /**
-     * Get all lights of a specific type.
-     */
-    public <T> List<T> getLights(Class<T> type) {
-        checkInitialized();
-
-        List<T> result = new ArrayList<>();
-
-        for (LightInstance light : lights.values()) {
-            if (type.isAssignableFrom(light.getType())) {
-                result.add(type.cast(light.getInstance()));
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Check if a light with the given name exists.
-     */
     public boolean hasLight(String name) {
         return lights.containsKey(name);
     }
 
-    /**
-     * Check if a light of the given type exists.
-     */
     public boolean hasLight(Class<?> type) {
         for (LightInstance light : lights.values()) {
-            if (type.isAssignableFrom(light.getType())) {
-                return true;
-            }
+            if (type.isAssignableFrom(light.getType())) return true;
         }
         return false;
     }
 
-    /**
-     * Get all registered light names.
-     */
     public Set<String> getLightNames() {
         return Collections.unmodifiableSet(lights.keySet());
     }
 
-    protected void checkInitialized() {
-        if (!initialized) {
-            throw new IllegalStateException(
-                    "Container not initialized. Call initialize() first."
-            );
-        }
-    }
-
-    protected void checkNotInitialized() {
-        if (initialized) {
-            throw new IllegalStateException(
-                    "Cannot modify container after initialization"
-            );
-        }
-    }
-
-    protected LightInstance getLightInstance(String name) {
-        return lights.get(name);
-    }
-
-    public boolean isInitialized() {
-        return initialized;
+    public Map<String, LightInstance> getLights() {
+        return Collections.unmodifiableMap(lights);
     }
 
     public void addPostProcessor(LightProcessor processor) {
@@ -246,13 +175,14 @@ public class LightContainer {
         return context;
     }
 
-    public Map<String, LightInstance> getLights() {
-        return Collections.unmodifiableMap(lights);
+    public boolean isInitialized() {
+        return initialized;
     }
 
     private Object getOrInstantiate(LightInstance light) {
         LightDefinition def = light.getMetadata().getDefinition();
 
+        // Evaluate profile at access time
         if (def.getProfile() != null && context != null &&
                 !context.getEnvironment().isProfileActive(def.getProfile())) {
             throw new NoSuchElementException(
@@ -261,15 +191,15 @@ public class LightContainer {
         }
 
         if (def.getCondition() != null && !def.getCondition().get()) {
-            throw new NoSuchElementException(
-                    "Light " + def.getName() + " did not meet condition"
-            );
+            throw new NoSuchElementException("Light " + def.getName() + " condition not met");
         }
 
+        // Prototype beans are always created anew
         if (def.getScope() == ScopeType.PROTOTYPE) {
             return instantiator.instantiatePrototype(light, this);
         }
 
+        // Singleton instantiation if not yet ready
         if (light.getState() != LightInstance.LightState.READY) {
             instantiator.instantiate(light, this);
         }
@@ -277,4 +207,9 @@ public class LightContainer {
         return light.getInstance();
     }
 
+    private void checkInitialized() {
+        if (!initialized) throw new IllegalStateException(
+                "Container not initialized. Call initialize() first."
+        );
+    }
 }

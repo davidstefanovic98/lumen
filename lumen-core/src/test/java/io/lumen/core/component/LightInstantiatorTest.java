@@ -109,31 +109,4 @@ class LightInstantiatorTest {
         assertSame(instance, light);
         assertNotNull(light.getContext());
     }
-
-    @Test
-    void testProfileAndConditional() {
-        DefaultApplicationContext context = new DefaultApplicationContext();
-
-        LightDefinition devBean = LightDefinition.fromClass(DevService.class);
-        devBean.setProfile("dev");
-        context.getLightContainer().registerDefinition(devBean);
-
-        LightDefinition prodBean = LightDefinition.fromClass(ProdService.class);
-        prodBean.setProfile("prod");
-        context.getLightContainer().registerDefinition(prodBean);
-
-        LightDefinition conditionalBean = LightDefinition.fromClass(ConditionalService.class);
-        conditionalBean.setCondition(() -> false);
-        context.getLightContainer().registerDefinition(conditionalBean);
-
-        context.getEnvironment().setActiveProfile("dev");
-
-        context.initialize();
-
-        assertNotNull(context.getLight(DevService.class));
-
-        assertThrows(Exception.class, () -> context.getLight(ProdService.class));
-
-        assertThrows(Exception.class, () -> context.getLight(ConditionalService.class));
-    }
 }

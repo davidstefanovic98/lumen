@@ -1,10 +1,11 @@
 package io.lumen.context;
 
-import io.lumen.annotations.Lazy;
-import io.lumen.annotations.Profile;
-import io.lumen.annotations.Scope;
-import io.lumen.annotations.Value;
-import io.lumen.core.component.*;
+import io.lumen.context.annotations.*;
+import io.lumen.core.component.Dependency;
+import io.lumen.core.component.LightAnalyzer;
+import io.lumen.core.component.LightDefinition;
+import io.lumen.core.component.LightMetadata;
+import io.lumen.core.conditional.Condition;
 import io.lumen.core.util.ReflectionUtil;
 
 import java.lang.reflect.Constructor;
@@ -15,18 +16,30 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Analyzes LightDefinitions and produces LightMetadata, including:
+ * - Dependencies
+ * - Lazy / Scope / Profile
+ * - Conditional classes
+ * - ConditionalOnProperty / ConditionalOnClass
+ */
 public class AnnotationLightAnalyzer implements LightAnalyzer {
 
     @Override
     public LightMetadata analyze(LightDefinition definition) {
-        if (definition.getSource() == LightDefinition.LightSource.INSTANCE) {
-            return new LightMetadata(definition, null, new ArrayList<>());
+        switch (definition.getSource()) {
+            case INSTANCE -> {
+                return new LightMetadata(definition, null, new ArrayList<>());
+            }
+            case FACTORY -> {
+                return analyzeFactory(definition);
+            }
+            case CLASS -> {
+                return analyzeClass(definition);
+            }
         }
-
-        if (definition.getSource() == LightDefinition.LightSource.FACTORY) {
-            return analyzeFactory(definition);
-        }
-        return analyzeClass(definition);
+        // shouldn't happen
+        return null;
     }
 
     protected LightMetadata analyzeFactory(LightDefinition definition) {
@@ -50,50 +63,33 @@ public class AnnotationLightAnalyzer implements LightAnalyzer {
             definition.setProfile(profileAnn.value());
         }
 
-        return new LightMetadata(
-                definition,
-                null,
-                extractDependencies(exec.getParameters())
-        );
-    }
+        Conditional conditionalAnn = exec.getAnnotation(Conditional.class);
 
+        LightMetadata metadata = new LightMetadata(definition, null, extractDependencies(exec.getParameters()));
 
-    protected List<Dependency> extractDependencies(Parameter[] parameters) {
-        return Arrays.stream(parameters)
-                .map(this::createDependency)
-                .toList();
-    }
-
-    protected Dependency createDependency(Parameter parameter) {
-        Class<?> type = parameter.getType();
-        boolean isCollection = Collection.class.isAssignableFrom(type);
-        if (isCollection) {
-            type = ReflectionUtil.getGenericType(parameter);
+        if (conditionalAnn != null) {
+            metadata.setConditionalClasses(conditionalAnn.value());
         }
 
-        Value valueAnnotation = parameter.getAnnotation(Value.class);
-        if (valueAnnotation != null) {
-            String key = valueAnnotation.value();
-            return new Dependency(
-                    type,
-                    null,
-                    true,
-                    isCollection,
-                    null,
-                    Dependency.DependencyType.VALUE,
-                    key
-            );
+        if (exec.isAnnotationPresent(ConditionalOnProperty.class)) {
+            ConditionalOnProperty ann = exec.getAnnotation(ConditionalOnProperty.class);
+            Condition c = new ConditionalOnPropertyCondition(ann.name(), ann.havingValue(), ann.matchIfMissing());
+            metadata.addCondition(c);
         }
 
-        return new Dependency(
-                type,
-                parameter.getName(),
-                true,
-                isCollection,
-                null,
-                Dependency.DependencyType.LIGHT,
-                null
-        );
+        if (exec.isAnnotationPresent(ConditionalOnClass.class)) {
+            ConditionalOnClass ann = exec.getAnnotation(ConditionalOnClass.class);
+            Condition c = new ConditionalOnClassCondition(ann.value(), ann.name());
+            metadata.addCondition(c);
+        }
+
+        if (exec.isAnnotationPresent(ConditionalOnLight.class)) {
+            ConditionalOnLight ann = exec.getAnnotation(ConditionalOnLight.class);
+            Condition c = new ConditionalOnLightCondition(ann.value(), ann.name());
+            metadata.addCondition(c);
+        }
+
+        return metadata;
     }
 
     protected LightMetadata analyzeClass(LightDefinition definition) {
@@ -103,19 +99,58 @@ public class AnnotationLightAnalyzer implements LightAnalyzer {
         definition.setLazy(lazy);
 
         if (type.isAnnotationPresent(Scope.class)) {
-            ScopeType scope = type.getAnnotation(Scope.class).value();
-            definition.setScope(scope);
+            definition.setScope(type.getAnnotation(Scope.class).value());
         }
 
         if (type.isAnnotationPresent(Profile.class)) {
-            String profile = type.getAnnotation(Profile.class).value();
-            definition.setProfile(profile);
+            definition.setProfile(type.getAnnotation(Profile.class).value());
         }
 
         Constructor<?> constructor = ReflectionUtil.findConstructor(type);
-        List<Dependency> constructorDeps = extractDependencies(constructor.getParameters());
+        List<Dependency> deps = extractDependencies(constructor.getParameters());
 
-        return new LightMetadata(definition, constructor, constructorDeps);
+        LightMetadata metadata = new LightMetadata(definition, constructor, deps);
+
+        if (type.isAnnotationPresent(Conditional.class)) {
+            Conditional conditionalAnn = type.getAnnotation(Conditional.class);
+            metadata.setConditionalClasses(conditionalAnn.value());
+        }
+
+        if (type.isAnnotationPresent(ConditionalOnProperty.class)) {
+            ConditionalOnProperty ann = type.getAnnotation(ConditionalOnProperty.class);
+            Condition c = new ConditionalOnPropertyCondition(ann.name(), ann.havingValue(), ann.matchIfMissing());
+            metadata.addCondition(c);
+        }
+
+        if (type.isAnnotationPresent(ConditionalOnClass.class)) {
+            ConditionalOnClass ann = type.getAnnotation(ConditionalOnClass.class);
+            Condition c = new ConditionalOnClassCondition(ann.value(), ann.name());
+            metadata.addCondition(c);
+        }
+
+        if (type.isAnnotationPresent(ConditionalOnLight.class)) {
+            ConditionalOnLight ann = type.getAnnotation(ConditionalOnLight.class);
+            Condition c = new ConditionalOnLightCondition(ann.value(), ann.name());
+            metadata.addCondition(c);
+        }
+
+        return metadata;
+    }
+
+    protected List<Dependency> extractDependencies(Parameter[] parameters) {
+        return Arrays.stream(parameters).map(this::createDependency).toList();
+    }
+
+    protected Dependency createDependency(Parameter parameter) {
+        Class<?> type = parameter.getType();
+        boolean isCollection = Collection.class.isAssignableFrom(type);
+        if (isCollection) type = ReflectionUtil.getGenericType(parameter);
+
+        if (parameter.isAnnotationPresent(Value.class)) {
+            String key = parameter.getAnnotation(Value.class).value();
+            return new Dependency(type, null, true, isCollection, null, Dependency.DependencyType.VALUE, key);
+        }
+
+        return new Dependency(type, parameter.getName(), true, isCollection, null, Dependency.DependencyType.LIGHT, null);
     }
 }
-

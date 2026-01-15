@@ -96,6 +96,11 @@ public class DefaultApplicationContext implements ApplicationContext {
         return environment;
     }
 
+    @Override
+    public void refresh() {
+        lightContainer.refresh();
+    }
+
     private void registerDefaultProcessors() {
         lightContainer.addPostProcessor(new ApplicationContextAwareProcessor(this));
     }

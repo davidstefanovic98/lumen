@@ -1,4 +1,4 @@
-package io.lumen.util;
+package io.lumen.context.util;
 
 public class Utils {
     public static String stripPlaceholder(String key) {

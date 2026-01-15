@@ -85,4 +85,10 @@ public interface ApplicationContext {
     Config getConfig();
 
     Environment getEnvironment();
+
+    /**
+     * Refresh the application context, reloading all configurations
+     * and re-initializing the container.
+     */
+    void refresh();
 }

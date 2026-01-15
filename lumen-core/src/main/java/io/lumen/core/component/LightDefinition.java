@@ -16,8 +16,16 @@ public class LightDefinition {
     private boolean lazy;
     private ScopeType scope = ScopeType.SINGLETON;
     private String profile;
-    private Supplier<Boolean> condition;
     private Executable executable;
+    private Supplier<Boolean> condition;
+
+    private LightDefinition(String name, Class<?> type, LightSource source) {
+        this.name = name;
+        this.type = type;
+        this.source = source;
+        this.sourceData = null;
+        this.executable = null;
+    }
 
     private LightDefinition(String name, Class<?> type, LightSource source, Object sourceData) {
         this.name = name;
@@ -68,7 +76,6 @@ public class LightDefinition {
         return new LightDefinition(name, method, LightSource.FACTORY, factory, type);
     }
 
-
     public enum LightSource {
         CLASS,
         INSTANCE,
@@ -115,20 +122,20 @@ public class LightDefinition {
         this.profile = profile;
     }
 
-    public Supplier<Boolean> getCondition() {
-        return condition;
-    }
-
-    public void setCondition(Supplier<Boolean> condition) {
-        this.condition = condition;
-    }
-
     public Executable getExecutable() {
         return executable;
     }
 
     public void setExecutable(Executable executable) {
         this.executable = executable;
+    }
+
+    public Supplier<Boolean> getCondition() {
+        return condition;
+    }
+
+    public void setCondition(Supplier<Boolean> condition) {
+        this.condition = condition;
     }
 
     @Override

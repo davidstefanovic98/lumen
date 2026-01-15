@@ -1,5 +1,7 @@
 package io.lumen.core.component;
 
+import io.lumen.core.conditional.Condition;
+
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,6 +16,9 @@ public class LightMetadata {
     private final Constructor<?> constructor;
     private final List<Dependency> constructorDeps;
     private final List<Dependency> fieldDeps;
+    private List<Condition> conditions;
+
+    private Class<? extends Condition>[] conditionalClasses;
 
     public LightMetadata(LightDefinition definition,
                          Constructor<?> constructor,
@@ -55,6 +60,25 @@ public class LightMetadata {
         List<Dependency> all = new ArrayList<>(constructorDeps);
         all.addAll(fieldDeps);
         return all;
+    }
+
+    public Class<? extends Condition>[] getConditionalClasses() {
+        return conditionalClasses;
+    }
+
+    public void setConditionalClasses(Class<? extends Condition>[] conditionalClasses) {
+        this.conditionalClasses = conditionalClasses;
+    }
+
+    public void addCondition(Condition condition) {
+        if (conditions == null) {
+            conditions = new ArrayList<>();
+        }
+        conditions.add(condition);
+    }
+
+    public List<Condition> getConditions() {
+        return conditions;
     }
 
     @Override

@@ -17,11 +17,10 @@ public class AnnotationApplicationContext implements ApplicationContext {
         this.environment = new Environment();
         this.container = new LightContainer(this,
                 new AnnotationLightAnalyzer(),
-                new LightInstantiator(
-                new PropertyDependencyProvider(environment)));
+                new LightInstantiator(new PropertyDependencyProvider(environment)));
         this.container.setApplicationContext(this);
         this.config = new Config();
-        new ConfigProcessor(container, environment, configClass);
+        new ConfigProcessor(container, configClass);
         container.initialize();
     }
 
@@ -68,5 +67,10 @@ public class AnnotationApplicationContext implements ApplicationContext {
     @Override
     public Environment getEnvironment() {
         return environment;
+    }
+
+    @Override
+    public void refresh() {
+        container.refresh();
     }
 }

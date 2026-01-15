@@ -75,6 +75,10 @@ public class LightInstance {
         return metadata.getDefinition().getName();
     }
 
+    public void clearInstance() {
+        this.instance = null;
+    }
+
     @Override
     public String toString() {
         return "LightInstance{" +
