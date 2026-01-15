@@ -2,6 +2,7 @@ package io.lumen.core.context;
 
 import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightFactory;
+import io.lumen.core.config.Config;
 
 /**
  * Represents a basic <b>Application Context</b> for the lumen-core DI container.
@@ -80,4 +81,8 @@ public interface ApplicationContext {
     void registerFactory(String name, Class<?> type, LightFactory factory);
 
     LightContainer getLightContainer();
+
+    Config getConfig();
+
+    Environment getEnvironment();
 }

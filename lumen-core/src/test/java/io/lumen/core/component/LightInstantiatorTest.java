@@ -1,6 +1,5 @@
 package io.lumen.core.component;
 
-import io.lumen.core.component.processor.ApplicationContextAwareProcessor;
 import io.lumen.core.context.ApplicationContext;
 import io.lumen.core.context.ApplicationContextAware;
 import io.lumen.core.context.DefaultApplicationContext;
@@ -62,6 +61,10 @@ class LightInstantiatorTest {
         }
     }
 
+    static class DevService {}
+    static class ProdService {}
+    static class ConditionalService {}
+
     // ---------- TESTS ----------
 
     @Test
@@ -105,5 +108,32 @@ class LightInstantiatorTest {
         assertNotNull(light);
         assertSame(instance, light);
         assertNotNull(light.getContext());
+    }
+
+    @Test
+    void testProfileAndConditional() {
+        DefaultApplicationContext context = new DefaultApplicationContext();
+
+        LightDefinition devBean = LightDefinition.fromClass(DevService.class);
+        devBean.setProfile("dev");
+        context.getLightContainer().registerDefinition(devBean);
+
+        LightDefinition prodBean = LightDefinition.fromClass(ProdService.class);
+        prodBean.setProfile("prod");
+        context.getLightContainer().registerDefinition(prodBean);
+
+        LightDefinition conditionalBean = LightDefinition.fromClass(ConditionalService.class);
+        conditionalBean.setCondition(() -> false);
+        context.getLightContainer().registerDefinition(conditionalBean);
+
+        context.getEnvironment().setActiveProfile("dev");
+
+        context.initialize();
+
+        assertNotNull(context.getLight(DevService.class));
+
+        assertThrows(Exception.class, () -> context.getLight(ProdService.class));
+
+        assertThrows(Exception.class, () -> context.getLight(ConditionalService.class));
     }
 }

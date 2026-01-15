@@ -3,11 +3,20 @@ package io.lumen.core.component;
 import io.lumen.core.context.ApplicationContext;
 import io.lumen.core.context.DefaultApplicationContext;
 import io.lumen.core.exception.CircularDependencyException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class LightContainerTest {
+
+    ApplicationContext context;
+    @BeforeEach
+    void setup() {
+        context = new DefaultApplicationContext();
+    }
 
     static class Config {}
     static class Repo {}
@@ -24,10 +33,25 @@ class LightContainerTest {
         public CircularB(CircularA a) {}
     }
 
+    static class MyService {
+        boolean initialized = false;
+        public MyService() { initialized = true; }
+    }
+
+    static class MyLazyService {
+        boolean initialized = false;
+        public MyLazyService() { initialized = true; }
+    }
+
+    static class CollectionConsumer {
+        final List<MyLazyService> services;
+        public CollectionConsumer(List<MyLazyService> services) {
+            this.services = services;
+        }
+    }
+
     @Test
     void testBasicRegistrationAndRetrieval() {
-        ApplicationContext context = new DefaultApplicationContext();
-
         context.register(Config.class);
         context.register(Repo.class);
         context.register(Service.class);
@@ -46,7 +70,6 @@ class LightContainerTest {
 
     @Test
     void testRegisterInstance() {
-        ApplicationContext context = new DefaultApplicationContext();
         Config config = new Config();
 
         context.registerInstance("config", config);
@@ -58,8 +81,6 @@ class LightContainerTest {
 
     @Test
     void testRegisterFactory() {
-        ApplicationContext context = new DefaultApplicationContext();
-
         context.registerFactory("repoFactory", Repo.class, def -> new Repo());
         context.register(Service.class);
 
@@ -72,11 +93,39 @@ class LightContainerTest {
 
     @Test
     void testCircularDependencyDetection() {
-        ApplicationContext context = new DefaultApplicationContext();
         context.register(CircularA.class);
         context.register(CircularB.class);
 
         Exception ex = assertThrows(CircularDependencyException.class, context::initialize);
         assertTrue(ex.getMessage().contains("Circular"));
+    }
+
+    @Test
+    void testLazySingletonAndPrototype() {
+        LightDefinition lazySingleton = LightDefinition.fromClass(MyLazyService.class, "lazyService");
+        lazySingleton.setLazy(true);
+        context.getLightContainer().registerDefinition(lazySingleton);
+
+        LightDefinition prototype = LightDefinition.fromClass(MyService.class, "prototypeService");
+        prototype.setScope(ScopeType.PROTOTYPE);
+        context.getLightContainer().registerDefinition(prototype);
+
+        LightDefinition consumerDef = LightDefinition.fromClass(CollectionConsumer.class);
+        context.getLightContainer().registerDefinition(consumerDef);
+
+        context.initialize();
+
+        MyLazyService lazy = context.getLight("lazyService");
+        assertTrue(lazy.initialized, "Lazy singleton should be initialized now");
+
+        MyService proto1 = context.getLight(MyService.class);
+        MyService proto2 = context.getLight(MyService.class);
+        assertNotSame(proto1, proto2, "Prototype instances should be different");
+
+        CollectionConsumer consumer = context.getLight(CollectionConsumer.class);
+        assertFalse(consumer.services.isEmpty(), "Lazy collection should be created");
+        for (MyLazyService s : consumer.services) {
+            assertTrue(s.initialized, "Lazy service inside collection should be initialized on access");
+        }
     }
 }

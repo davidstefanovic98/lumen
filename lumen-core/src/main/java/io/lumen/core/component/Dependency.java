@@ -12,34 +12,39 @@ public class Dependency {
     private final boolean required;
     private final boolean collection;
     private final Class<?>[] qualifiers;
+    private final DependencyType depType;
+    private final String valueKey;
 
     public Dependency(Class<?> type) {
-        this(type, null, true, false, null);
+        this(type, null, true, false, null, DependencyType.LIGHT, null);
     }
 
     public Dependency(Class<?> type, String name) {
-        this(type, name, true, false, null);
+        this(type, name, true, false, null, DependencyType.LIGHT, null);
     }
 
-    public Dependency(Class<?> type, String name, boolean required, boolean collection, Class<?>[] qualifiers) {
+    public Dependency(Class<?> type, String name, boolean required, boolean collection, Class<?>[] qualifiers, DependencyType depType, String valueKey) {
         this.type = type;
         this.name = name;
         this.required = required;
         this.collection = collection;
         this.qualifiers = qualifiers;
+        this.depType = depType != null ? depType : DependencyType.LIGHT;
+        this.valueKey = valueKey;
     }
 
     /**
      * Check if the given metadata satisfies this dependency.
      */
     public boolean matches(LightMetadata metadata) {
-        // Match by name first if specified
-        if (name != null && !name.isEmpty() && !name.startsWith("arg")) {
-            return metadata.getDefinition().getName().equals(name);
+        if (depType == DependencyType.LIGHT) {
+            if (name != null && !name.isEmpty() && !name.startsWith("arg")) {
+                return metadata.getDefinition().getName().equals(name);
+            }
+            // Otherwise match by type
+            return type.isAssignableFrom(metadata.getDefinition().getType());
         }
-
-        // Otherwise match by type
-        return type.isAssignableFrom(metadata.getDefinition().getType());
+      return false;
     }
 
     public Class<?> getType() {
@@ -64,6 +69,19 @@ public class Dependency {
 
     public boolean hasQualifiers() {
         return qualifiers != null && qualifiers.length > 0;
+    }
+
+    public DependencyType getDepType() {
+        return depType;
+    }
+
+    public String getValueKey() {
+        return valueKey;
+    }
+
+    public enum DependencyType {
+        LIGHT,
+        VALUE
     }
 
     @Override

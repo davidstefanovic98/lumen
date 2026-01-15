@@ -16,5 +16,6 @@
 
     <modules>
         <module>lumen-core</module>
+        <module>lumen-context</module>
     </modules>
 </project>

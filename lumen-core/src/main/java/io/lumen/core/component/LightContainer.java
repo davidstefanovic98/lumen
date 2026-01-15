@@ -1,7 +1,9 @@
 package io.lumen.core.component;
 
 import io.lumen.core.component.processor.LightProcessor;
+import io.lumen.core.context.ApplicationContext;
 
+import java.lang.reflect.Method;
 import java.util.*;
 
 /**
@@ -14,12 +16,15 @@ public class LightContainer {
     private final LightResolver resolver;
     private final LightInstantiator instantiator;
     private boolean initialized;
+    private ApplicationContext context;
+
 
     /**
      * Create a container with default components (no annotation support).
      */
-    public LightContainer() {
-        this(new DefaultLightAnalyzer(), new LightResolver(), new LightInstantiator());
+    public LightContainer(ApplicationContext context, LightAnalyzer analyzer, LightInstantiator instantiator) {
+        this(analyzer, new LightResolver(), instantiator);
+        this.context = context;
     }
 
     /**
@@ -71,10 +76,21 @@ public class LightContainer {
         registerDefinition(definition);
     }
 
+    public LightDefinition registerFactory(String name, Method method, LightFactory factory, Class<?> type) {
+        checkNotInitialized();
+        LightDefinition def = LightDefinition.fromFactory(name, method, factory, type);
+        registerDefinition(def);
+        return def;
+    }
+
     /**
      * Internal method to register a definition.
      */
     protected void registerDefinition(LightDefinition definition) {
+        if (definition.getCondition() != null && !definition.getCondition().get()) {
+            return;
+        }
+
         if (lights.containsKey(definition.getName())) {
             throw new IllegalStateException(
                     "Light with name '" + definition.getName() + "' already registered"
@@ -98,7 +114,10 @@ public class LightContainer {
         }
 
         for (LightInstance light : lights.values()) {
-            instantiator.instantiate(light, this);
+            if (!light.getMetadata().getDefinition().isLazy() &&
+                    light.getMetadata().getDefinition().getScope() == ScopeType.SINGLETON) {
+                instantiator.instantiate(light, this);
+            }
         }
 
         initialized = true;
@@ -114,25 +133,17 @@ public class LightContainer {
         List<LightInstance> matches = new ArrayList<>();
 
         for (LightInstance light : lights.values()) {
-            if (type.isAssignableFrom(light.getType())) {
-                matches.add(light);
-            }
+            if (type.isAssignableFrom(light.getType())) matches.add(light);
         }
 
-        if (matches.isEmpty()) {
-            throw new NoSuchElementException(
-                    "No light found for type: " + type.getName()
-            );
-        }
-
-        if (matches.size() > 1) {
+        if (matches.isEmpty())
+            throw new NoSuchElementException("No light found for type: " + type.getName());
+        if (matches.size() > 1)
             throw new IllegalStateException(
-                    "Multiple lights found for type: " + type.getName() +
-                            ". Use getLight(String) with a specific name instead."
-            );
-        }
+                "Multiple lights found for type: " + type.getName() + ". Use getLight(String) instead."
+        );
 
-        return type.cast(matches.get(0).getInstance());
+        return type.cast(getOrInstantiate(matches.getFirst()));
     }
 
     /**
@@ -149,7 +160,7 @@ public class LightContainer {
             );
         }
 
-        return (T) light.getInstance();
+        return (T) getOrInstantiate(light);
     }
 
     /**
@@ -222,4 +233,48 @@ public class LightContainer {
     public void addPostProcessor(LightProcessor processor) {
         instantiator.addPostProcessor(processor);
     }
+
+    public void addPreProcessor(LightProcessor processor) {
+        instantiator.addPreProcessor(processor);
+    }
+
+    public void setApplicationContext(ApplicationContext context) {
+        this.context = context;
+    }
+
+    public ApplicationContext getApplicationContext() {
+        return context;
+    }
+
+    public Map<String, LightInstance> getLights() {
+        return Collections.unmodifiableMap(lights);
+    }
+
+    private Object getOrInstantiate(LightInstance light) {
+        LightDefinition def = light.getMetadata().getDefinition();
+
+        if (def.getProfile() != null && context != null &&
+                !context.getEnvironment().isProfileActive(def.getProfile())) {
+            throw new NoSuchElementException(
+                    "Light " + def.getName() + " not active in current profile"
+            );
+        }
+
+        if (def.getCondition() != null && !def.getCondition().get()) {
+            throw new NoSuchElementException(
+                    "Light " + def.getName() + " did not meet condition"
+            );
+        }
+
+        if (def.getScope() == ScopeType.PROTOTYPE) {
+            return instantiator.instantiatePrototype(light, this);
+        }
+
+        if (light.getState() != LightInstance.LightState.READY) {
+            instantiator.instantiate(light, this);
+        }
+
+        return light.getInstance();
+    }
+
 }

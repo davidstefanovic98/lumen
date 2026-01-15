@@ -1,7 +1,9 @@
 package io.lumen.core.component;
 
+import io.lumen.core.component.processor.DependencyProvider;
 import io.lumen.core.component.processor.LightProcessor;
 import io.lumen.core.exception.LightInstantiationException;
+import io.lumen.core.proxy.ProxyFactory;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -15,6 +17,12 @@ public class LightInstantiator {
 
     private final List<LightProcessor> preProcessors = new ArrayList<>();
     private final List<LightProcessor> postProcessors = new ArrayList<>();
+
+    private final DependencyProvider dependencyProvider;
+
+    public LightInstantiator(DependencyProvider dependencyProvider) {
+        this.dependencyProvider = dependencyProvider;
+    }
 
     public void addPreProcessor(LightProcessor processor) {
         preProcessors.add(processor);
@@ -60,6 +68,20 @@ public class LightInstantiator {
     }
 
     /**
+     * Instantiate a prototype light (always new).
+     */
+    public Object instantiatePrototype(LightInstance template, LightContainer container) {
+        try {
+            Object instance = createInstance(template, container);
+            for (LightProcessor processor : postProcessors)
+                instance = processor.afterInstantiation(template, instance);
+            return instance;
+        } catch (Exception e) {
+            throw new LightInstantiationException("Failed to instantiate prototype: " + template.getName(), e);
+        }
+    }
+
+    /**
      * Determine which method to create instance (CLASS, FACTORY, INSTANCE).
      */
     protected Object createInstance(LightInstance light, LightContainer container) throws Exception {
@@ -79,10 +101,13 @@ public class LightInstantiator {
         Constructor<?> constructor = light.getMetadata().getConstructor();
 
         for (LightInstance dep : light.getResolvedDependencies()) {
-            instantiate(dep, container);
+            if (dep.getState() != LightInstance.LightState.READY &&
+                    dep.getState() != LightInstance.LightState.INSTANTIATING) {
+                instantiate(dep, container);
+            }
         }
 
-        Object[] args = gatherConstructorArguments(light);
+        Object[] args = gatherConstructorArguments(light, container);
 
         return constructor.newInstance(args);
     }
@@ -98,41 +123,56 @@ public class LightInstantiator {
     /**
      * Collect constructor arguments from resolved dependencies.
      */
-    protected Object[] gatherConstructorArguments(LightInstance light) {
+    protected Object[] gatherConstructorArguments(LightInstance light, LightContainer container) {
         List<Dependency> constructorDeps = light.getMetadata().getConstructorDeps();
         Map<Dependency, LightInstance> resolvedMap = light.getResolvedDependencyMap();
 
         List<Object> args = new ArrayList<>();
 
         for (Dependency dep : constructorDeps) {
+            Object arg = null;
             if (dep.isCollection()) {
-                List<Object> collection = new ArrayList<>();
+                List<LightInstance> elements = new ArrayList<>();
                 for (Map.Entry<Dependency, LightInstance> entry : resolvedMap.entrySet()) {
-                    if (entry.getKey().equals(dep)) {
-                        collection.add(entry.getValue().getInstance());
-                    }
+                    if (entry.getKey().equals(dep)) elements.add(entry.getValue());
                 }
-                args.add(collection);
+                arg = ProxyFactory.createLazyCollection(container, elements);
+            } else if (dep.getValueKey() != null && dependencyProvider.canProvide(dep)) {
+                    // Non-light dependency, resolve via provider
+                arg = dependencyProvider.provide(dep);
             } else {
                 LightInstance depLight = resolvedMap.get(dep);
                 if (depLight != null) {
-                    args.add(depLight.getInstance());
-                } else if (!dep.isRequired()) {
-                    args.add(null);
-                } else {
+                    arg = depLight.getMetadata().getDefinition().isLazy()
+                            ? ProxyFactory.createLazy(container, depLight, dep.getType())
+                            : depLight.getInstance();
+                } else if (dep.isRequired()) {
                     throw new LightInstantiationException(
                             "Required dependency not resolved: " + dep +
                                     " for light: " + light.getName()
                     );
                 }
             }
+
+            args.add(arg);
         }
 
         return args.toArray();
     }
 
+
     /**
      * Post-creation initialization hook (for extension, optional).
      */
     protected void initialize(LightInstance light) {}
+
+    private Object convert(Object value, Class<?> type) {
+        if (value == null) return null;
+        String str = value.toString();
+        if (type == String.class) return str;
+        if (type == Integer.class || type == int.class) return Integer.parseInt(str);
+        if (type == Boolean.class || type == boolean.class) return Boolean.parseBoolean(str);
+        if (type == Long.class || type == long.class) return Long.parseLong(str);
+        return value;
+    }
 }

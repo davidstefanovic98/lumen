@@ -5,8 +5,6 @@ import io.lumen.core.util.ReflectionUtil;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Parameter;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -72,12 +70,11 @@ public class DefaultLightAnalyzer implements LightAnalyzer {
         Class<?> type = parameter.getType();
         String name = parameter.getName();
 
-        // Check if it's a collection
         boolean isCollection = Collection.class.isAssignableFrom(type);
         if (isCollection) {
             type = getGenericType(parameter);
         }
 
-        return new Dependency(type, name, true, isCollection, null);
+        return new Dependency(type, name, true, isCollection, null, Dependency.DependencyType.LIGHT, null);
     }
 }

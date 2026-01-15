@@ -1,8 +1,12 @@
 package io.lumen.core.context;
 
+import io.lumen.core.component.DefaultLightAnalyzer;
 import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightFactory;
+import io.lumen.core.component.LightInstantiator;
 import io.lumen.core.component.processor.ApplicationContextAwareProcessor;
+import io.lumen.core.component.processor.DefaultDependencyProvider;
+import io.lumen.core.config.Config;
 
 /**
  * Default implementation of {@link ApplicationContext} using a {@link LightContainer}.
@@ -27,14 +31,23 @@ import io.lumen.core.component.processor.ApplicationContextAwareProcessor;
 public class DefaultApplicationContext implements ApplicationContext {
 
     private final LightContainer lightContainer;
+    private final Config config;
+    private final Environment environment;
 
     public DefaultApplicationContext() {
-        this.lightContainer = new LightContainer();
+        this.lightContainer = new LightContainer(
+                this,
+                new DefaultLightAnalyzer(),
+                new LightInstantiator(new DefaultDependencyProvider()));
+        this.config = new Config();
+        this.environment = new Environment();
         registerDefaultProcessors();
     }
 
     public DefaultApplicationContext(LightContainer container) {
         this.lightContainer = container;
+        this.config = new Config();
+        this.environment = new Environment();
         registerDefaultProcessors();
     }
 
@@ -71,6 +84,16 @@ public class DefaultApplicationContext implements ApplicationContext {
     @Override
     public LightContainer getLightContainer() {
         return lightContainer;
+    }
+
+    @Override
+    public Config getConfig() {
+        return config;
+    }
+
+    @Override
+    public Environment getEnvironment() {
+        return environment;
     }
 
     private void registerDefaultProcessors() {

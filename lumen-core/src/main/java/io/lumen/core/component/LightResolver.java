@@ -3,9 +3,7 @@ package io.lumen.core.component;
 import io.lumen.core.exception.CircularDependencyException;
 import io.lumen.core.exception.MissingDependencyException;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Resolves dependencies between lights, building the dependency graph.
@@ -14,67 +12,82 @@ import java.util.Map;
 public class LightResolver {
 
     /**
-     * Resolve all dependencies for a light.
-     * This is called recursively to ensure dependencies are resolved depth-first.
+     * Entry point to resolve a light and its dependencies.
+     * Tracks resolution path to detect circular dependencies.
      */
     public void resolve(LightInstance light, Map<String, LightInstance> allLights) {
-        if (light.getState() != LightInstance.LightState.REGISTERED) {
-            return;
-        }
-
-        light.setState(LightInstance.LightState.RESOLVING);
-
-        for (Dependency dep : light.getMetadata().getConstructorDeps()) {
-            resolveDependency(light, dep, allLights);
-        }
-
-        light.setState(LightInstance.LightState.RESOLVED);
+        Deque<LightInstance> path = new ArrayDeque<>();
+        resolve(light, allLights, path);
     }
 
     /**
-     * Resolve a single dependency.
+     * Recursive resolution with path tracking.
      */
-    protected void resolveDependency(LightInstance light, Dependency dep, Map<String, LightInstance> allLights) {
+    private void resolve(LightInstance light, Map<String, LightInstance> allLights, Deque<LightInstance> path) {
+        if (light.getState() == LightInstance.LightState.RESOLVED || light.getState() == LightInstance.LightState.READY) {
+            return;
+        }
+
+        if (path.contains(light)) {
+            String cycleMessage = buildCircularPathMessage(path, light);
+            throw new CircularDependencyException(cycleMessage);
+        }
+
+        path.push(light);
+        light.setState(LightInstance.LightState.RESOLVING);
+
+        for (Dependency dep : light.getMetadata().getConstructorDeps()) {
+            resolveDependency(light, dep, allLights, path);
+        }
+
+        light.setState(LightInstance.LightState.RESOLVED);
+        path.pop();
+    }
+
+    /**
+     * Resolve a single dependency with path tracking.
+     */
+    private void resolveDependency(LightInstance light, Dependency dep, Map<String, LightInstance> allLights, Deque<LightInstance> path) {
+        if (dep.getDepType() != Dependency.DependencyType.LIGHT) {
+            return;
+        }
+
         if (dep.isCollection()) {
             List<LightInstance> matches = findAllMatches(dep, allLights);
 
             if (matches.isEmpty() && dep.isRequired()) {
-                throw new MissingDependencyException(
-                        "No lights found for collection dependency " + dep +
-                                " required by " + light.getName()
-                );
+                throw new MissingDependencyException(buildMissingMessage(light, dep));
             }
 
             for (LightInstance match : matches) {
-                checkCircularDependency(light, match);
-                resolve(match, allLights);
+                resolve(match, allLights, path);
                 light.addResolvedDependency(dep, match);
             }
         } else {
-            // For single dependency, find exactly one match
             LightInstance depLight = findMatch(dep, allLights);
 
             if (depLight == null && dep.isRequired()) {
-                throw new MissingDependencyException(
-                        "No light found for dependency " + dep +
-                                " required by " + light.getName()
-                );
+                throw new MissingDependencyException(buildMissingMessage(light, dep));
             }
 
             if (depLight != null) {
-                checkCircularDependency(light, depLight);
-                resolve(depLight, allLights); // Recursive resolution
+                resolve(depLight, allLights, path);
                 light.addResolvedDependency(dep, depLight);
             }
         }
     }
 
-    /**
-     * Find a single light that matches the dependency.
-     * Extension point for qualifier-based matching.
-     */
+    private String buildMissingMessage(LightInstance light, Dependency dep) {
+        return String.format(
+                "Missing dependency for light '%s' [%s]: required dependency '%s' of type %s not found",
+                light.getName(),
+                light.getType().getSimpleName(),
+                dep.getName() != null ? dep.getName() : dep.getType().getSimpleName(),
+                dep.getType().getSimpleName()
+        );
+    }
+
     protected LightInstance findMatch(Dependency dep, Map<String, LightInstance> lights) {
-        // Match by name first if specified
         if (dep.getName() != null) {
             LightInstance light = lights.get(dep.getName());
             if (light != null && dep.matches(light.getMetadata())) {
@@ -82,40 +95,38 @@ public class LightResolver {
             }
         }
 
-        // Otherwise match by type
         for (LightInstance light : lights.values()) {
             if (dep.matches(light.getMetadata())) {
                 return light;
             }
         }
-
         return null;
     }
 
-    /**
-     * Find all lights that match the dependency (for collections).
-     */
     protected List<LightInstance> findAllMatches(Dependency dep, Map<String, LightInstance> lights) {
         List<LightInstance> matches = new ArrayList<>();
-
         for (LightInstance light : lights.values()) {
             if (dep.matches(light.getMetadata())) {
                 matches.add(light);
             }
         }
-
         return matches;
     }
 
-    /**
-     * Check for circular dependency.
-     */
-    protected void checkCircularDependency(LightInstance dependent, LightInstance dependency) {
-        if (dependency.getState() == LightInstance.LightState.RESOLVING) {
-            throw new CircularDependencyException(
-                    "Circular dependency detected: " +
-                            dependent.getName() + " -> " + dependency.getName()
-            );
+    private String buildCircularPathMessage(Deque<LightInstance> path, LightInstance repeatingLight) {
+        StringBuilder sb = new StringBuilder("Circular dependency detected: ");
+        Iterator<LightInstance> iterator = path.descendingIterator();
+        boolean found = false;
+        while (iterator.hasNext()) {
+            LightInstance light = iterator.next();
+            if (light == repeatingLight) {
+                found = true;
+            }
+            if (found) {
+                sb.append(light.getName()).append(" -> ");
+            }
         }
+        sb.append(repeatingLight.getName());
+        return sb.toString();
     }
 }
