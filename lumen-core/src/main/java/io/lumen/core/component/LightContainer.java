@@ -20,19 +20,24 @@ public class LightContainer {
     private final Map<String, LightDefinition> registeredDefinitions = new LinkedHashMap<>();
     private final LightAnalyzer analyzer;
     private final LightResolver resolver;
-    private final LightInstantiator instantiator;
+    private final DefaultLightCreator instantiator;
     private ApplicationContext context;
     private boolean initialized;
+    private final ContainerInternals internals = new ContainerInternals(this);
 
-    public LightContainer(ApplicationContext context, LightAnalyzer analyzer, LightInstantiator instantiator) {
+    public LightContainer(ApplicationContext context, LightAnalyzer analyzer, DefaultLightCreator instantiator) {
         this(analyzer, new LightResolver(), instantiator);
         this.context = context;
     }
 
-    public LightContainer(LightAnalyzer analyzer, LightResolver resolver, LightInstantiator instantiator) {
+    public LightContainer(LightAnalyzer analyzer, LightResolver resolver, DefaultLightCreator instantiator) {
         this.analyzer = analyzer;
         this.resolver = resolver;
         this.instantiator = instantiator;
+    }
+
+    public ContainerInternalAccess internals() {
+        return internals;
     }
 
     public void register(Class<?> type) {
@@ -99,7 +104,7 @@ public class LightContainer {
         for (LightInstance light : lights.values()) {
             LightDefinition def = light.getMetadata().getDefinition();
             if (!def.isLazy() && def.getScope() == ScopeType.SINGLETON) {
-                instantiator.instantiate(light, this);
+                instantiator.create(light, this);
             }
         }
 
@@ -112,10 +117,10 @@ public class LightContainer {
 
     public <T> T getLight(Class<T> type) {
         checkInitialized();
-
         List<LightInstance> matches = new ArrayList<>();
         for (LightInstance light : lights.values()) {
-            if (type.isAssignableFrom(light.getType())) matches.add(light);
+            if (type.isAssignableFrom(light.getType()))
+                matches.add(light);
         }
 
         if (matches.isEmpty())
@@ -131,7 +136,6 @@ public class LightContainer {
     @SuppressWarnings("unchecked")
     public <T> T getLight(String name) {
         checkInitialized();
-
         LightInstance light = lights.get(name);
         if (light == null) {
             throw new NoSuchElementException("No light found with name: " + name);
@@ -179,6 +183,46 @@ public class LightContainer {
         return initialized;
     }
 
+    LightInstance getLightInstance(String name) {
+        return lights.get(name);
+    }
+
+    Object doGetOrInstantiate(LightInstance light) {
+        LightDefinition def = light.getMetadata().getDefinition();
+
+        if (def.getScope() == ScopeType.PROTOTYPE) {
+            return instantiator.createPrototype(light, this);
+        }
+
+        if (light.getState() == LightInstance.LightState.INSTANTIATING) {
+            return light.getInstance();
+        }
+
+        if (light.getState() != LightInstance.LightState.READY) {
+            instantiator.create(light, this);
+        }
+
+        return light.getInstance();
+    }
+
+    <T> T doGetLightByType(Class<T> type) {
+        List<LightInstance> matches = new ArrayList<>();
+        for (LightInstance light : lights.values()) {
+            if (type.isAssignableFrom(light.getType())) {
+                matches.add(light);
+            }
+        }
+
+        if (matches.isEmpty())
+            throw new NoLightFoundException("No light found for type: " + type.getName());
+
+        if (matches.size() > 1)
+            throw new MultipleLightFoundException("Multiple lights found for type: " + type.getName());
+
+        return type.cast(doGetOrInstantiate(matches.getFirst()));
+    }
+
+
     private Object getOrInstantiate(LightInstance light) {
         LightDefinition def = light.getMetadata().getDefinition();
 
@@ -196,20 +240,25 @@ public class LightContainer {
 
         // Prototype beans are always created anew
         if (def.getScope() == ScopeType.PROTOTYPE) {
-            return instantiator.instantiatePrototype(light, this);
+            return instantiator.createPrototype(light, this);
+        }
+
+        if (light.getState() == LightInstance.LightState.INSTANTIATING) {
+            return light.getInstance();
         }
 
         // Singleton instantiation if not yet ready
         if (light.getState() != LightInstance.LightState.READY) {
-            instantiator.instantiate(light, this);
+            instantiator.create(light, this);
         }
 
         return light.getInstance();
     }
 
     private void checkInitialized() {
-        if (!initialized) throw new IllegalStateException(
+        if (!initialized)
+            throw new IllegalStateException(
                 "Container not initialized. Call initialize() first."
-        );
+            );
     }
 }

@@ -20,7 +20,7 @@ class AnnotationApplicationContextTest {
 
         @Light
         @Scope(ScopeType.PROTOTYPE)
-        public MyService prototypeService(@Value("${my.property}") String property) {
+        public MyService prototypeService(String property) {
             return new MyService(property);
         }
 

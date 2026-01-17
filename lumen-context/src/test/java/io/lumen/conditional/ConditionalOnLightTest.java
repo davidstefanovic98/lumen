@@ -20,7 +20,7 @@ class ConditionalOnLightTest {
         }
 
         @Light
-        @Profile("profile")
+        @Profile("dev")
         ProfileClassService profileService() {
             return new ProfileClassService();
         }

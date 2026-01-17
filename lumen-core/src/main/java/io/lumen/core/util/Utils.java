@@ -1,6 +1,7 @@
-package io.lumen.context.util;
+package io.lumen.core.util;
 
 public class Utils {
+
     public static String stripPlaceholder(String key) {
         if (key.startsWith("${") && key.endsWith("}")) {
             return key.substring(2, key.length() - 1);

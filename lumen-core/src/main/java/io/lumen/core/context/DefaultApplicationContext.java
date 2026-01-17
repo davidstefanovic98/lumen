@@ -1,12 +1,12 @@
 package io.lumen.core.context;
 
-import io.lumen.core.component.DefaultLightAnalyzer;
-import io.lumen.core.component.LightContainer;
-import io.lumen.core.component.LightFactory;
-import io.lumen.core.component.LightInstantiator;
+import io.lumen.core.component.*;
 import io.lumen.core.component.processor.ApplicationContextAwareProcessor;
 import io.lumen.core.component.processor.DefaultDependencyProvider;
+import io.lumen.core.component.processor.DependencyProvider;
 import io.lumen.core.config.Config;
+
+import java.util.List;
 
 /**
  * Default implementation of {@link ApplicationContext} using a {@link LightContainer}.
@@ -35,10 +35,23 @@ public class DefaultApplicationContext implements ApplicationContext {
     private final Environment environment;
 
     public DefaultApplicationContext() {
+        DependencyProvider dependencyProvider =
+                new DefaultDependencyProvider();
+
+        CompositeLightInstantiator compositeInstantiator =
+                new CompositeLightInstantiator(List.of(
+                        new InstanceLightInstantiator(),
+                        new FactoryLightInstantiator(),
+                        new ClassLightInstantiator(dependencyProvider)
+                ));
+
+        DefaultLightCreator lightCreator =
+                new DefaultLightCreator(compositeInstantiator);
+
         this.lightContainer = new LightContainer(
                 this,
                 new DefaultLightAnalyzer(),
-                new LightInstantiator(new DefaultDependencyProvider()));
+                lightCreator);
         this.config = new Config();
         this.environment = new Environment();
         registerDefaultProcessors();

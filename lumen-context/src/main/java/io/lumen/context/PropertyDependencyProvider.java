@@ -4,7 +4,7 @@ import io.lumen.core.component.Dependency;
 import io.lumen.core.component.processor.DependencyProvider;
 import io.lumen.core.context.Environment;
 
-import static io.lumen.context.util.Utils.stripPlaceholder;
+import static io.lumen.core.util.Utils.stripPlaceholder;
 
 public class PropertyDependencyProvider implements DependencyProvider {
 

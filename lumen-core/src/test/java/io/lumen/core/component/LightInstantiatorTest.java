@@ -3,6 +3,7 @@ package io.lumen.core.component;
 import io.lumen.core.context.ApplicationContext;
 import io.lumen.core.context.ApplicationContextAware;
 import io.lumen.core.context.DefaultApplicationContext;
+import io.lumen.core.exception.MissingDependencyException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +52,16 @@ class LightInstantiatorTest {
         }
     }
 
+    static class Foo {
+        Bar bar;
+        public Foo(Bar bar) { this.bar = bar; }
+    }
+
+    static class Bar {
+        String value = "hello";
+    }
+
+
     static class Repo {}
 
     // ---------- Factory implementation ----------
@@ -69,11 +80,9 @@ class LightInstantiatorTest {
 
     @Test
     void testClassBeanWithDependencyAndApplicationContextAware() {
-        // Register dependencies
         context.register(Repo.class);
         context.register(ClassLight.class);
 
-        // Initialize (resolve dependencies)
         context.initialize();
 
         // Retrieve ClassLight
@@ -109,4 +118,28 @@ class LightInstantiatorTest {
         assertSame(instance, light);
         assertNotNull(light.getContext());
     }
+
+    @Test
+    void testClassInstantiation() {
+        context.register(Bar.class);
+        context.register(Foo.class);
+
+        context.initialize();
+
+        Foo foo = context.getLight(Foo.class);
+        Bar bar = context.getLight(Bar.class);
+
+        assertNotNull(foo);
+        assertNotNull(bar);
+        assertSame(bar, foo.bar, "Constructor injection should inject the same instance");
+    }
+
+    @Test
+    void testMissingDependencyThrows() {
+        context.register(Foo.class); // Foo depends on Bar, which is missing
+        MissingDependencyException ex = assertThrows(MissingDependencyException.class, context::initialize);
+        assertTrue(ex.getMessage().contains("Missing dependency"));
+    }
+
+
 }

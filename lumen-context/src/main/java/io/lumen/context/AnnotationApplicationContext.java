@@ -1,11 +1,12 @@
 package io.lumen.context;
 
-import io.lumen.core.component.LightContainer;
-import io.lumen.core.component.LightFactory;
-import io.lumen.core.component.LightInstantiator;
+import io.lumen.core.component.*;
+import io.lumen.core.component.processor.DependencyProvider;
 import io.lumen.core.config.Config;
 import io.lumen.core.context.ApplicationContext;
 import io.lumen.core.context.Environment;
+
+import java.util.List;
 
 public class AnnotationApplicationContext implements ApplicationContext {
 
@@ -15,13 +16,29 @@ public class AnnotationApplicationContext implements ApplicationContext {
 
     public AnnotationApplicationContext(Class<?> configClass) {
         this.environment = new Environment();
+        DefaultLightCreator lightCreator = getLightCreator();
+
         this.container = new LightContainer(this,
                 new AnnotationLightAnalyzer(),
-                new LightInstantiator(new PropertyDependencyProvider(environment)));
+                lightCreator);
         this.container.setApplicationContext(this);
         this.config = new Config();
         new ConfigProcessor(container, configClass);
         container.initialize();
+    }
+
+    private DefaultLightCreator getLightCreator() {
+        DependencyProvider dependencyProvider =
+                new PropertyDependencyProvider(environment);
+
+        CompositeLightInstantiator compositeInstantiator =
+                new CompositeLightInstantiator(List.of(
+                        new InstanceLightInstantiator(),
+                        new FactoryLightInstantiator(),
+                        new ClassLightInstantiator(dependencyProvider)
+                ));
+
+        return new DefaultLightCreator(compositeInstantiator);
     }
 
     @Override

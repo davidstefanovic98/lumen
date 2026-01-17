@@ -1,6 +1,7 @@
 package io.lumen.context;
 
 import io.lumen.context.annotations.*;
+import io.lumen.core.annotation.Value;
 import io.lumen.core.component.Dependency;
 import io.lumen.core.component.LightAnalyzer;
 import io.lumen.core.component.LightDefinition;
@@ -23,7 +24,7 @@ import java.util.List;
  * - Conditional classes
  * - ConditionalOnProperty / ConditionalOnClass
  */
-public class AnnotationLightAnalyzer implements LightAnalyzer {
+class AnnotationLightAnalyzer implements LightAnalyzer {
 
     @Override
     public LightMetadata analyze(LightDefinition definition) {

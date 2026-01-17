@@ -1,5 +1,6 @@
 package io.lumen.context;
 
+import io.lumen.core.annotation.Value;
 import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightDefinition;
 import io.lumen.core.component.LightFactory;
@@ -9,7 +10,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 
-import static io.lumen.context.util.Utils.stripPlaceholder;
+import static io.lumen.core.util.Utils.stripPlaceholder;
 
 /**
  * Processes a user-defined configuration class:
