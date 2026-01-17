@@ -1,8 +1,8 @@
 package io.lumen.conditional;
 
-import io.lumen.context.annotations.ConditionalOnLight;
-import io.lumen.context.annotations.Light;
-import io.lumen.context.annotations.Profile;
+import io.lumen.context.annotation.ConditionalOnLight;
+import io.lumen.context.annotation.Light;
+import io.lumen.context.annotation.Profile;
 import io.lumen.context.AnnotationApplicationContext;
 import io.lumen.core.exception.NoLightFoundException;
 import org.junit.jupiter.api.Test;

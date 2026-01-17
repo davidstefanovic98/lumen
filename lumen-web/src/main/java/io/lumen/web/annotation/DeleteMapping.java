@@ -1,13 +1,12 @@
-package io.lumen.context.annotations;
+package io.lumen.web.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface ConditionalOnLight {
-    Class<?>[] value() default {};
-    String[] name() default {};
+public @interface DeleteMapping {
+    String value();
 }

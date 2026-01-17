@@ -4,7 +4,7 @@ import io.lumen.core.annotation.Value;
 import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightDefinition;
 import io.lumen.core.component.LightFactory;
-import io.lumen.context.annotations.*;
+import io.lumen.context.annotation.*;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -76,7 +76,9 @@ class ConfigProcessor {
 
     private void scanPackage(String basePackage) {
         PackageScanner.scan(basePackage).forEach(clazz -> {
-            if (clazz.isAnnotationPresent(Component.class) || clazz.isAnnotationPresent(Service.class)) {
+            if (clazz.isAnnotationPresent(Component.class)
+                    || clazz.isAnnotationPresent(Service.class)
+                    || clazz.isAnnotationPresent(Controller.class)) {
                 container.register(clazz);
             }
         });

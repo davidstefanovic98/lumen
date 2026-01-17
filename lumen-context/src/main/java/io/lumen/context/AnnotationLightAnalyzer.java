@@ -1,6 +1,6 @@
 package io.lumen.context;
 
-import io.lumen.context.annotations.*;
+import io.lumen.context.annotation.*;
 import io.lumen.core.annotation.Value;
 import io.lumen.core.component.Dependency;
 import io.lumen.core.component.LightAnalyzer;

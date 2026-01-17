@@ -18,5 +18,6 @@
         <module>lumen-core</module>
         <module>lumen-context</module>
         <module>lumen-web</module>
+        <module>test-app</module>
     </modules>
 </project>

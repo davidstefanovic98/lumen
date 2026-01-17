@@ -1,6 +1,7 @@
 package io.lumen.context;
 
-import io.lumen.context.annotations.*;
+import io.lumen.context.annotation.*;
+import io.lumen.core.annotation.Value;
 import io.lumen.core.component.ScopeType;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,7 @@ class AnnotationApplicationContextTest {
 
         @Light
         @Scope(ScopeType.PROTOTYPE)
-        public MyService prototypeService(String property) {
+        public MyService prototypeService(@Value("${my.property}") String property) {
             return new MyService(property);
         }
 

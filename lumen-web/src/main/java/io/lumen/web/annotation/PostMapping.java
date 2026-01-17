@@ -1,4 +1,4 @@
-package io.lumen.context.annotations;
+package io.lumen.web.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,8 +7,6 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Light {
-    String profile() default "";
-    String condition() default "";
-    String name() default "";
+public @interface PostMapping {
+    String value();
 }

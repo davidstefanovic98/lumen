@@ -1,4 +1,4 @@
-package io.lumen.context.annotations;
+package io.lumen.context.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,6 +7,8 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Lazy {
-    boolean value() default true;
+public @interface ConditionalOnProperty {
+    String name();
+    String havingValue() default "";
+    boolean matchIfMissing() default false;
 }

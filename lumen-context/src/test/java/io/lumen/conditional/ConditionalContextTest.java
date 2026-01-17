@@ -1,6 +1,6 @@
 package io.lumen.conditional;
 
-import io.lumen.context.annotations.*;
+import io.lumen.context.annotation.*;
 import io.lumen.context.AnnotationApplicationContext;
 import io.lumen.core.annotation.Value;
 import io.lumen.core.component.ScopeType;
