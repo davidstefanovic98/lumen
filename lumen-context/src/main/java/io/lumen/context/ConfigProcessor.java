@@ -33,7 +33,7 @@ class ConfigProcessor {
     void process(Class<?> configClass) {
         if (configClass.isAnnotationPresent(ComponentScan.class)) {
             ComponentScan scan = configClass.getAnnotation(ComponentScan.class);
-            Arrays.stream(scan.basePackages()).forEach(this::scanPackage);
+            scanPackage(scan.basePackages());
         }
 
         Object configInstance = instantiateConfigClass(configClass);
@@ -74,7 +74,7 @@ class ConfigProcessor {
         def.setExecutable(method);
     }
 
-    private void scanPackage(String basePackage) {
+    private void scanPackage(String... basePackage) {
         PackageScanner.scan(basePackage).forEach(clazz -> {
             if (clazz.isAnnotationPresent(Component.class)
                     || clazz.isAnnotationPresent(Service.class)

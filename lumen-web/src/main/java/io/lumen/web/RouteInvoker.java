@@ -1,5 +1,6 @@
 package io.lumen.web;
 
+import io.lumen.web.argument.CompositeMethodArgumentResolver;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.lang.reflect.Method;
@@ -8,10 +9,10 @@ import java.lang.reflect.Method;
  * Invokes a route method with resolved parameters.
  */
 class RouteInvoker {
-    private final ParameterResolver parameterResolver;
+    private final CompositeMethodArgumentResolver compositeMethodArgumentResolver;
 
     RouteInvoker() {
-        this.parameterResolver = new ParameterResolver();
+        this.compositeMethodArgumentResolver = new CompositeMethodArgumentResolver();
     }
 
     Object invoke(RouteMatch match, HttpServletRequest request) throws Exception {
@@ -19,12 +20,11 @@ class RouteInvoker {
         Method method = route.method();
         Object controller = route.controller();
 
-        Object[] args = parameterResolver.resolveParameters(
+        Object[] args = compositeMethodArgumentResolver.resolveArguments(
                 method.getParameters(),
                 request,
                 match.pathVariables()
         );
-
         return method.invoke(controller, args);
     }
 }
