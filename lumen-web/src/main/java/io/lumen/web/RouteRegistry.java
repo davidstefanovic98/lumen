@@ -1,17 +1,31 @@
 package io.lumen.web;
 
+import io.lumen.web.exception.AmbiguousMappingException;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Clean registry for route storage and lookup
+ * Registry for storing and managing route mappings.
  */
 public class RouteRegistry {
 
     private final List<RouteEntry> routes = new ArrayList<>();
 
     public void register(Route route) {
-        routes.add(new RouteEntry(route, PathMatcher.compile(route.pathPattern())));
+        PathMatcher newMatcher = PathMatcher.compile(route.getPathPattern());
+        for (RouteEntry existing : routes) {
+            if (existing.route.getHttpMethod().equalsIgnoreCase(route.getHttpMethod()) &&
+                    existing.matcher.isAmbiguous(newMatcher)) {
+                throw new AmbiguousMappingException(
+                        "Ambiguous mapping: [" + route.getHttpMethod() + " " + route.getPathPattern() + "] in controller "
+                                + route.getController().getClass().getSimpleName() + "#" + route.getMethod().getName() +
+                                " conflicts with existing [" + existing.route.getHttpMethod() + " " + existing.route.getPathPattern() + "] in controller "
+                                + existing.route.getController().getClass().getSimpleName() + "#" + existing.route.getMethod().getName()
+                );
+            }
+        }
+        routes.add(new RouteEntry(route, newMatcher));
     }
 
     RouteMatch findMatch(String path, String httpMethod) {
@@ -26,7 +40,7 @@ public class RouteRegistry {
     private record RouteEntry(Route route, PathMatcher matcher) {
 
         boolean matches(String path, String httpMethod) {
-            return route.httpMethod().equalsIgnoreCase(httpMethod) && matcher.matches(path);
+            return route.getHttpMethod().equalsIgnoreCase(httpMethod) && matcher.matches(path);
         }
 
         RouteMatch createMatch(String path) {

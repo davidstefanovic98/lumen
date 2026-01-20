@@ -2,10 +2,10 @@ package io.lumen.core.util;
 
 import io.lumen.core.exception.LightInitializationException;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Parameter;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.*;
+import java.util.HashSet;
+import java.util.Set;
 
 public class ReflectionUtil {
 
@@ -63,5 +63,29 @@ public class ReflectionUtil {
 
         // Fallback to Object if we can't determine the type
         return Object.class;
+    }
+
+    public static boolean hasAnnotation(Class<?> target, Class<? extends Annotation> annotation) {
+        return hasAnnotation(target, annotation, new HashSet<>());
+    }
+
+    private static boolean hasAnnotation(
+            AnnotatedElement element,
+            Class<? extends Annotation> target,
+            Set<AnnotatedElement> visited
+    ) {
+        if (visited.contains(element))
+            return false;
+
+        visited.add(element);
+
+        if (element.isAnnotationPresent(target)) return true;
+
+        for (Annotation ann : element.getAnnotations()) {
+            if (hasAnnotation(ann.annotationType(), target, visited)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

@@ -13,10 +13,12 @@ import java.util.regex.Pattern;
 class PathMatcher {
     private final Pattern pattern;
     private final List<String> variableNames;
+    private final String patternString;
 
-    private PathMatcher(Pattern pattern, List<String> variableNames) {
+    private PathMatcher(Pattern pattern, List<String> variableNames, String patternString) {
         this.pattern = pattern;
         this.variableNames = variableNames;
+        this.patternString = patternString;
     }
 
     static PathMatcher compile(String pathPattern) {
@@ -33,7 +35,7 @@ class PathMatcher {
         matcher.appendTail(regex);
 
         Pattern compiledPattern = Pattern.compile("^" + regex + "$");
-        return new PathMatcher(compiledPattern, variables);
+        return new PathMatcher(compiledPattern, variables, pathPattern);
     }
 
     boolean matches(String path) {
@@ -51,5 +53,63 @@ class PathMatcher {
         }
 
         return variables;
+    }
+
+    /**
+     * Checks if this path pattern overlaps with another path pattern.
+     * Two patterns overlap if there exists at least one path that matches both patterns.
+     * Checks literally segment by segment, considering wildcards and variables.
+     *
+     * @param other the other PathMatcher to compare with
+     * @return true if the patterns overlap, false otherwise
+     */
+    boolean isAmbiguous(PathMatcher other) {
+        String[] seg1 = this.patternString.split("/");
+        String[] seg2 = other.patternString.split("/");
+
+        // Check for ** wildcard (matches everything after)
+        for (int i = 0; i < seg1.length; i++) {
+            if (seg1[i].equals("**")) {
+                // ** at position i means this pattern matches anything from here on
+                // It overlaps with other if other has at least i segments
+                return seg2.length >= i;
+            }
+        }
+        for (int i = 0; i < seg2.length; i++) {
+            if (seg2[i].equals("**")) {
+                return seg1.length >= i;
+            }
+        }
+
+        // No ** wildcards, so lengths must match
+        if (seg1.length != seg2.length) {
+            return false;
+        }
+
+        for (int i = 0; i < seg1.length; i++) {
+            String s1 = seg1[i];
+            String s2 = seg2[i];
+
+            boolean s1Var = (s1.startsWith("{") && s1.endsWith("}")) || s1.equals("*");
+            boolean s2Var = (s2.startsWith("{") && s2.endsWith("}")) || s2.equals("*");
+
+            // Both are literals
+            if (!s1Var && !s2Var) {
+                if (!s1.equals(s2)) {
+                    return false; // Different literals = no overlap
+                }
+                continue;
+            }
+
+            // One is literal, one is variable/wildcard = NOT ambiguous (literal is more specific)
+            if (s1Var != s2Var) {
+                return false;
+            }
+
+            // Both are variables/wildcards = continue checking
+            // Note: {id} and * are treated the same (both match any single segment)
+        }
+
+        return true;
     }
 }

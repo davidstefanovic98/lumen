@@ -17,8 +17,8 @@ class RouteInvoker {
 
     Object invoke(RouteMatch match, HttpServletRequest request) throws Exception {
         Route route = match.route();
-        Method method = route.method();
-        Object controller = route.controller();
+        Method method = route.getMethod();
+        Object controller = route.getController();
 
         Object[] args = compositeMethodArgumentResolver.resolveArguments(
                 method.getParameters(),
