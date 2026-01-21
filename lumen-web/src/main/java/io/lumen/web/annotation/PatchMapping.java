@@ -10,4 +10,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface PatchMapping {
     String value();
+    String path() default "";
+    String[] consumes() default {};
+    String[] produces() default {};
 }

@@ -1,6 +1,7 @@
 package io.lumen.core.component;
 
 import io.lumen.core.exception.LightInitializationException;
+import io.lumen.core.util.ParameterNameDiscoverer;
 import io.lumen.core.util.ReflectionUtil;
 
 import java.lang.reflect.Constructor;
@@ -68,7 +69,7 @@ public class DefaultLightAnalyzer implements LightAnalyzer {
      */
     protected Dependency createDependency(Parameter parameter) {
         Class<?> type = parameter.getType();
-        String name = parameter.getName();
+        String name = ParameterNameDiscoverer.getParameterName(parameter);
 
         boolean isCollection = Collection.class.isAssignableFrom(type);
         if (isCollection) {

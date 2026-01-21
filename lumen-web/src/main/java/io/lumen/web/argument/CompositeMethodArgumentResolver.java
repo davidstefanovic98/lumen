@@ -12,11 +12,11 @@ public class CompositeMethodArgumentResolver {
 
     private final List<MethodArgumentResolver> resolvers;
 
-    public CompositeMethodArgumentResolver() {
+    public CompositeMethodArgumentResolver(HttpMessageConverterRegistry registry) {
         this.resolvers = List.of(
                 new PathVariableArgumentResolver(),
                 new RequestParamArgumentResolver(),
-                new RequestBodyArgumentResolver(new HttpMessageConverterRegistry()),
+                new RequestBodyArgumentResolver(registry),
                 new ModelAttributeArgumentResolver()
         );
     }

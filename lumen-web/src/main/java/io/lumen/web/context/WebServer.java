@@ -53,4 +53,12 @@ class WebServer {
     public void addServlet(String servletName, HttpServlet servlet) {
         servlets.put(servletName, servlet);
     }
+
+    public void stop() {
+        try {
+            tomcat.stop();
+        } catch (LifecycleException e) {
+            throw new RuntimeException("Failed to stop Tomcat server", e);
+        }
+    }
 }

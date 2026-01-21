@@ -20,12 +20,42 @@ class ControllerScanner {
     private static final Map<Class<? extends Annotation>, MappingInfo> MAPPING_ANNOTATIONS = new HashMap<>();
 
     static {
-        MAPPING_ANNOTATIONS.put(GetMapping.class, new MappingInfo("GET", a -> ((GetMapping) a).value()));
-        MAPPING_ANNOTATIONS.put(PostMapping.class, new MappingInfo("POST", a -> ((PostMapping) a).value()));
-        MAPPING_ANNOTATIONS.put(PutMapping.class, new MappingInfo("PUT", a -> ((PutMapping) a).value()));
-        MAPPING_ANNOTATIONS.put(DeleteMapping.class, new MappingInfo("DELETE", a -> ((DeleteMapping) a).value()));
-        MAPPING_ANNOTATIONS.put(PatchMapping.class, new MappingInfo("PATCH", a -> ((PatchMapping) a).value()));
+        MAPPING_ANNOTATIONS.put(GetMapping.class, new MappingInfo(
+                "GET",
+                a -> !((GetMapping) a).value().isEmpty() ? ((GetMapping) a).value() : "",
+                a -> ((GetMapping) a).consumes(),
+                a -> ((GetMapping) a).produces()
+        ));
+
+        MAPPING_ANNOTATIONS.put(PostMapping.class, new MappingInfo(
+                "POST",
+                a -> !((PostMapping) a).value().isEmpty() ? ((PostMapping) a).value() : "",
+                a -> ((PostMapping) a).consumes(),
+                a -> ((PostMapping) a).produces()
+        ));
+
+        MAPPING_ANNOTATIONS.put(PutMapping.class, new MappingInfo(
+                "PUT",
+                a -> !((PutMapping) a).value().isEmpty() ? ((PutMapping) a).value() : "",
+                a -> ((PutMapping) a).consumes(),
+                a -> ((PutMapping) a).produces()
+        ));
+
+        MAPPING_ANNOTATIONS.put(DeleteMapping.class, new MappingInfo(
+                "DELETE",
+                a -> !((DeleteMapping) a).value().isEmpty() ? ((DeleteMapping) a).value() : "",
+                a -> ((DeleteMapping) a).consumes(),
+                a -> ((DeleteMapping) a).produces()
+        ));
+
+        MAPPING_ANNOTATIONS.put(PatchMapping.class, new MappingInfo(
+                "PATCH",
+                a -> !((PatchMapping) a).value().isEmpty() ? ((PatchMapping) a).value() : "",
+                a -> ((PatchMapping) a).consumes(),
+                a -> ((PatchMapping) a).produces()
+        ));
     }
+
 
     static void scanControllers(Collection<LightInstance> lights, RouteRegistry registry) {
         for (LightInstance light : lights) {
@@ -37,7 +67,7 @@ class ControllerScanner {
 
     private static void scanController(Object instance, Class<?> type, RouteRegistry registry) {
         String basePath = extractBasePath(type);
-        boolean classIsRest = type.isAnnotationPresent(ResponseBody.class);
+        boolean classIsRest = hasAnnotation(type, ResponseBody.class);
 
         for (Method method : type.getDeclaredMethods()) {
             for (Map.Entry<Class<? extends Annotation>, MappingInfo> entry : MAPPING_ANNOTATIONS.entrySet()) {
@@ -50,8 +80,11 @@ class ControllerScanner {
 
                     Route route = new Route(instance, method, info.httpMethod, fullPath);
 
-                    boolean methodIsRest = method.isAnnotationPresent(ResponseBody.class);
+                    boolean methodIsRest = hasAnnotation(method, ResponseBody.class);
                     route.setRest(classIsRest || methodIsRest);
+
+                    route.setConsumes(info.consumesExtractor.apply(annotation));
+                    route.setProduces(info.producesExtractor.apply(annotation));
 
                     registry.register(route);
                 }
@@ -98,5 +131,20 @@ class ControllerScanner {
         return basePath + methodPath;
     }
 
-    private record MappingInfo(String httpMethod, Function<Annotation, String> pathExtractor) {}
+    private static class MappingInfo {
+        String httpMethod;
+        Function<Annotation, String> pathExtractor;
+        Function<Annotation, String[]> consumesExtractor;
+        Function<Annotation, String[]> producesExtractor;
+
+        public MappingInfo(String httpMethod,
+                           Function<Annotation, String> pathExtractor,
+                           Function<Annotation, String[]> consumesExtractor,
+                           Function<Annotation, String[]> producesExtractor) {
+            this.httpMethod = httpMethod;
+            this.pathExtractor = pathExtractor;
+            this.consumesExtractor = consumesExtractor;
+            this.producesExtractor = producesExtractor;
+        }
+    }
 }

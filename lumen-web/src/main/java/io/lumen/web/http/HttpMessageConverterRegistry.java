@@ -2,6 +2,7 @@ package io.lumen.web.http;
 
 import io.lumen.web.exception.HttpMessageConvertException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Type;
 import java.util.List;
@@ -41,6 +42,24 @@ public class HttpMessageConverterRegistry {
         throw new HttpMessageConvertException(
                 "No HttpMessageConverter found for type " + targetType.getName() +
                         " and content-type " + contentType
+        );
+    }
+
+    public void write(Object object, Class<?> type, HttpServletResponse response) {
+        String contentType = response.getContentType();
+
+        for (HttpMessageConverter converter : converters) {
+            if (converter.canWrite(type, contentType)) {
+                try {
+                    converter.write(object, type, response);
+                    return;
+                } catch (Exception e) {
+                    throw new HttpMessageConvertException("Conversion failed", e);
+                }
+            }
+        }
+        throw new HttpMessageConvertException(
+                "No converter found for " + type.getSimpleName() + " to " + contentType
         );
     }
 }

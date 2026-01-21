@@ -1,13 +1,15 @@
 package io.lumen.web.annotation;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
+@RequestMapping
+@Documented
 public @interface GetMapping {
-    String value();
+    String value() default "";
+    String path() default "";
+    String[] consumes() default {};
+    String[] produces() default {};
 }
 

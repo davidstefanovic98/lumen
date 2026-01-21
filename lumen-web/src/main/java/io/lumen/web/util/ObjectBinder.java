@@ -1,5 +1,6 @@
 package io.lumen.web.util;
 
+import io.lumen.core.util.ParameterNameDiscoverer;
 import io.lumen.core.util.ReflectionUtil;
 import io.lumen.web.exception.BindRequestParamException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,20 +57,13 @@ public final class ObjectBinder {
             Constructor<?> ctor = ReflectionUtil.findConstructor(type);
             Parameter[] ctorParams = ctor.getParameters();
 
-            boolean hasSyntheticNames = false;
-            for (Parameter p : ctorParams) {
-                if (p.getName().startsWith("arg")) {
-                    hasSyntheticNames = true;
-                    break;
-                }
-            }
-
-            if (!hasSyntheticNames && ctorParams.length > 0) {
+            if (ctorParams.length > 0) {
+                String[] paramNames = ParameterNameDiscoverer.getParameterNames(ctor);
                 Map<String, String> missing = new LinkedHashMap<>();
                 Object[] args = new Object[ctorParams.length];
 
                 for (int i = 0; i < ctorParams.length; i++) {
-                    String name = ctorParams[i].getName();
+                    String name = paramNames[i];
                     String value = request.getParameter(name);
                     if (value == null) {
                         missing.put(name, ctorParams[i].getType().getSimpleName());
@@ -94,7 +88,6 @@ public final class ObjectBinder {
                         e
                 );
             }
-
 
             Field[] fields = classFieldCache.computeIfAbsent(type, clazz -> {
                 Field[] allFields = clazz.getDeclaredFields();

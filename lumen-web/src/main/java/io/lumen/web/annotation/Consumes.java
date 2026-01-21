@@ -7,10 +7,6 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RequestMapping {
-    String value() default "";
-    String path() default "";
-    String[] method() default {};
-    String[] consumes() default {};
-    String[] produces() default {};
+public @interface Consumes {
+    String[] value();
 }

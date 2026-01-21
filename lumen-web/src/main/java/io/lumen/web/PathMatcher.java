@@ -14,11 +14,13 @@ class PathMatcher {
     private final Pattern pattern;
     private final List<String> variableNames;
     private final String patternString;
+    private final int specificity;
 
     private PathMatcher(Pattern pattern, List<String> variableNames, String patternString) {
         this.pattern = pattern;
         this.variableNames = variableNames;
         this.patternString = patternString;
+        this.specificity = computeSpecificity(patternString);
     }
 
     static PathMatcher compile(String pathPattern) {
@@ -111,5 +113,46 @@ class PathMatcher {
         }
 
         return true;
+    }
+
+    int getSpecificity() {
+        return specificity;
+    }
+
+    boolean couldShadowLiteral(PathMatcher other) {
+        String[] seg1 = this.patternString.split("/");
+        String[] seg2 = other.patternString.split("/");
+
+        if (seg1.length != seg2.length) {
+            return false;
+        }
+
+        for (int i = 0; i < seg1.length; i++) {
+            boolean s1Var = (seg1[i].startsWith("{") && seg1[i].endsWith("}")) || seg1[i].equals("*");
+            boolean s2Var = (seg2[i].startsWith("{") && seg2[i].endsWith("}")) || seg2[i].equals("*");
+
+            if (s1Var && !s2Var) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Calculate specificity score for this path pattern.
+     * Higher score means more specific.
+     * Literal segments score 2, variable segments score 1, wildcard (**) scores 0.
+     *
+     * @return specificity score
+     */
+    private static int computeSpecificity(String pathPattern) {
+        String[] segments = pathPattern.split("/");
+        int score = 0;
+        for (String s : segments) {
+            if (s.equals("**")) score += 0;           // wildcard
+            else if (s.startsWith("{") && s.endsWith("}")) score += 1; // variable
+            else if (!s.isEmpty()) score += 2;       // literal
+        }
+        return score;
     }
 }

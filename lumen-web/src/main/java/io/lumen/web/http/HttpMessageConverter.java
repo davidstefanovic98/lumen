@@ -1,6 +1,7 @@
 package io.lumen.web.http;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Type;
 
@@ -32,4 +33,26 @@ interface HttpMessageConverter {
             Type genericType,
             HttpServletRequest request
     ) throws Exception;
+
+    /**
+     * Checks if the converter can write the given class and content type.
+     *
+     * @param clazz       the target class
+     * @param contentType the content type of the HTTP message
+     * @return true if the converter can write, false otherwise
+     */
+    boolean canWrite(Class<?> clazz, String contentType);
+
+    /**
+     * Writes the Java object to the HTTP message.
+     *
+     * @param object    object for writing
+     * @param type      the target class
+     * @param response   the HTTP servlet response
+     * @throws Exception if an error occurs during reading or conversion
+     */
+    void write(
+            Object object,
+            Class<?> type,
+            HttpServletResponse response) throws Exception;
 }

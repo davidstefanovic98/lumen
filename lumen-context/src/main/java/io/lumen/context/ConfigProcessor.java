@@ -16,7 +16,7 @@ import static io.lumen.core.util.Utils.stripPlaceholder;
 
 /**
  * Processes a user-defined configuration class:
- * - Scans @Bean methods and registers them
+ * - Scans @Light methods and registers them
  * - Scans @ComponentScan annotations and registers packages
  */
 class ConfigProcessor {

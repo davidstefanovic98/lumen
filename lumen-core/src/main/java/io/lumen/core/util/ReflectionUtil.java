@@ -65,6 +65,10 @@ public class ReflectionUtil {
         return Object.class;
     }
 
+    public static boolean hasAnnotation(Method method, Class<? extends Annotation> annotation) {
+        return hasAnnotation(method, annotation, new HashSet<>());
+    }
+
     public static boolean hasAnnotation(Class<?> target, Class<? extends Annotation> annotation) {
         return hasAnnotation(target, annotation, new HashSet<>());
     }
