@@ -32,6 +32,8 @@ public class WebLumenInitializer implements LumenInitializer {
         argumentResolver.addResolver(new RequestParamArgumentResolver());
         argumentResolver.addResolver(new RequestBodyArgumentResolver(converterRegistry));
 
-        logger.info("Web Module initialized for context: {}", servletContext.getContextPath());
+        String rawContextPath = servletContext.getContextPath();
+        String contextPath = rawContextPath.isEmpty() ? "/" : rawContextPath;
+        logger.info("Web Module initialized for context: {}", contextPath);
     }
 }

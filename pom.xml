@@ -21,5 +21,6 @@
         <module>test-app</module>
         <module>lumen-web-thymeleaf</module>
         <module>lumen-web-mvc</module>
+        <module>lumen-security</module>
     </modules>
 </project>

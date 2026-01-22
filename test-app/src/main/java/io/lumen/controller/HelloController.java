@@ -18,7 +18,7 @@ public class HelloController {
     @GetMapping("/test")
     public String test(ModelAndView model) {
         model.addObject("frameworkName", "Lumen");
-        model.addObject("user", new User("Marija", "marijailicc019@gmail.com"));
+        model.addObject("user", new User("Marija", "marijailicc019@gmail.com", null, null, null));
         model.addObject("isDev", true);
         model.addObject("currentTime", LocalDateTime.now());
         model.addObject("serverPort", 8080);

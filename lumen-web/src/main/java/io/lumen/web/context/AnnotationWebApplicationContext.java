@@ -50,6 +50,7 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         container.registerExternalInstance(HttpMessageConverterRegistry.class, converterRegistry);
         container.registerExternalInstance(RouteInvoker.class, routeInvoker);
         container.registerExternalInstance(RouteRegistry.class, routeRegistry);
+
         logger.info("Lumen Web Application Context: Scanning configuration class [{}]", configClass.getSimpleName());
         context.scan(configClass);
     }
@@ -58,35 +59,44 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
     public void startWebServer() {
         try {
             StartupBanner.print(logger);
-
             webServer = new WebServer(port);
-            webServer.addContextListener(new LumenContextInitializer(this));
+
+            webServer.addSCI(new LumenServletContainerInitializer(this));
+
             webServer.start();
-
-            var container = context.getLightContainer();
-
-            var converters = container.internals().getLightByType(HttpMessageConverterRegistry.class);
-            var invoker = container.internals().getLightByType(RouteInvoker.class);
-            var resProvider = container.internals().getLightByType(ResourceProvider.class);
-            var resHandler = container.internals().getLightByType(StaticResourceResultHandler.class);
-
-            logger.info("Initializing DispatcherServlet");
-            DispatcherServlet dispatcher = new DispatcherServlet(
-                    routeRegistry,
-                    controllerAdviceRegistry,
-                    converters,
-                    invoker,
-                    resProvider,
-                    resHandler
-            );
-
-            webServer.addServlet("dispatcher", dispatcher, "/*");
-
             logger.info("Lumen application started successfully on port: {}", port);
             webServer.await();
         } catch (Exception e) {
             logger.error("Critical failure during web server startup", e);
         }
+    }
+
+    /**
+     * This is called by the Initializer (SCI) while the ServletContext is still "unlocked".
+     */
+    public void onWebStartup(ServletContext servletContext) {
+        logger.info("Initializing Web Context via SCI...");
+        context.getLightContainer().registerExternalInstance(ServletContext.class, servletContext);
+        context.initialize();
+        this.registerFilters(servletContext);
+        this.registerDispatcherServlet(servletContext);
+        this.refreshWebComponents();
+    }
+
+    private void registerDispatcherServlet(ServletContext servletContext) {
+        var container = context.getLightContainer();
+
+        DispatcherServlet dispatcher = new DispatcherServlet(
+                routeRegistry,
+                controllerAdviceRegistry,
+                container.internals().getLightByType(HttpMessageConverterRegistry.class),
+                container.internals().getLightByType(RouteInvoker.class),
+                container.internals().getLightByType(ResourceProvider.class),
+                container.internals().getLightByType(StaticResourceResultHandler.class)
+        );
+
+        servletContext.addServlet("dispatcher", dispatcher).addMapping("/*");
+        logger.info("DispatcherServlet registered at /*");
     }
 
     public AnnotationApplicationContext getApplicationContext() {
@@ -122,7 +132,6 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
     public void registerFilters(ServletContext servletContext) {
         logger.info("Registering web filters...");
 
-        // The container already sorts these because we updated doGetLightsByType!
         List<LumenFilter> filters = context.getLightContainer()
                 .internals()
                 .getLightsByType(LumenFilter.class);

@@ -9,39 +9,23 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>test-app</artifactId>
+    <artifactId>lumen-security</artifactId>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.lumen</groupId>
-            <artifactId>lumen-context</artifactId>
+            <artifactId>lumen-web</artifactId>
             <version>0.1.0-SNAPSHOT</version>
-            <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>io.lumen</groupId>
-            <artifactId>lumen-web-mvc</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.lumen</groupId>
-            <artifactId>lumen-web-thymeleaf</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.lumen</groupId>
-            <artifactId>lumen-security</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
-            <scope>compile</scope>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <version>0.4</version>
         </dependency>
     </dependencies>
-
 </project>

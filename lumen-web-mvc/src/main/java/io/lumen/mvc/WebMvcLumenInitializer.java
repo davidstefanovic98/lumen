@@ -41,7 +41,8 @@ public class WebMvcLumenInitializer implements LumenInitializer {
         }
         routeInvoker.addResultHandler(new ViewResultHandler(viewResolver));
         argumentResolver.addResolver(new ModelAndViewArgumentResolver());
-        String contextPath = servletContext.getContextPath();
-        logger.info("Configuring MVC for path: ", "".equals(servletContext.getContextPath()) ? "/" : servletContext.getContextPath());
+        String rawContextPath = servletContext.getContextPath();
+        String contextPath = rawContextPath.isEmpty() ? "/" : rawContextPath;
+        logger.info("Configuring MVC for path: {}", contextPath);
     }
 }

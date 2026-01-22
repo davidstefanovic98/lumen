@@ -1,5 +1,6 @@
 package io.lumen.web.context;
 
+import jakarta.servlet.ServletContainerInitializer;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.http.HttpServlet;
@@ -22,15 +23,13 @@ class WebServer {
         this.rootContext = tomcat.addContext("", docBase.getAbsolutePath());
     }
 
-    public void addContextListener(ServletContextListener listener) {
-        if (rootContext instanceof org.apache.catalina.core.StandardContext standardContext) {
-            standardContext.addApplicationLifecycleListener(listener);
-        }
-    }
-
     public void addServlet(String name, HttpServlet servlet, String mapping) {
         Tomcat.addServlet(rootContext, name, servlet);
         rootContext.addServletMappingDecoded(mapping, name);
+    }
+
+    public void addSCI(ServletContainerInitializer sci) {
+        rootContext.addServletContainerInitializer(sci, null);
     }
 
     public void start() {
