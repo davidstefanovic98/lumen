@@ -1,64 +1,55 @@
 package io.lumen.web.context;
 
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.http.HttpServlet;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.startup.Tomcat;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 
 class WebServer {
     private final Tomcat tomcat;
-    private final int port;
-    private Context rootContext;
-    private final Map<String, HttpServlet> servlets = new HashMap<>();
+    private final Context rootContext;
 
     public WebServer(int port) {
-        this.port = port;
-        tomcat = new Tomcat();
+        this.tomcat = new Tomcat();
         tomcat.setPort(port);
         tomcat.getConnector();
+
+        File docBase = new File(System.getProperty("java.io.tmpdir"));
+        this.rootContext = tomcat.addContext("", docBase.getAbsolutePath());
+    }
+
+    public void addContextListener(ServletContextListener listener) {
+        if (rootContext instanceof org.apache.catalina.core.StandardContext standardContext) {
+            standardContext.addApplicationLifecycleListener(listener);
+        }
+    }
+
+    public void addServlet(String name, HttpServlet servlet, String mapping) {
+        Tomcat.addServlet(rootContext, name, servlet);
+        rootContext.addServletMappingDecoded(mapping, name);
     }
 
     public void start() {
         try {
-            File docBase = new File(System.getProperty("java.io.tmpdir"));
-            if (!docBase.exists())
-                docBase.mkdirs();
-
-            if (rootContext == null) {
-                rootContext = tomcat.addContext("", docBase.getAbsolutePath());
-            }
-
-            for (Map.Entry<String, HttpServlet> entry : servlets.entrySet()) {
-                String name = entry.getKey();
-                HttpServlet servlet = entry.getValue();
-                Tomcat.addServlet(rootContext, name, servlet);
-                rootContext.addServletMappingDecoded("/*", name);
-            }
             tomcat.start();
-            tomcat.getServer().await();
-
         } catch (LifecycleException e) {
-            throw new RuntimeException("Failed to start Tomcat server", e);
+            throw new RuntimeException(e);
         }
     }
 
-    public Tomcat getTomcat() {
-        return tomcat;
-    }
-
-    public void addServlet(String servletName, HttpServlet servlet) {
-        servlets.put(servletName, servlet);
+    public void await() {
+        tomcat.getServer().await();
     }
 
     public void stop() {
         try {
             tomcat.stop();
         } catch (LifecycleException e) {
-            throw new RuntimeException("Failed to stop Tomcat server", e);
+            throw new RuntimeException(e);
         }
     }
 }

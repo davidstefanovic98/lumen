@@ -1,5 +1,6 @@
 package io.lumen.web;
 
+import io.lumen.context.annotation.Component;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.web.exception.AmbiguousMappingException;
@@ -10,6 +11,7 @@ import java.util.List;
 /**
  * Registry for storing and managing route mappings.
  */
+@Component
 public class RouteRegistry {
     private static final Logger logger = LoggerFactory.getLogger(RouteRegistry.class);
     private final List<RouteEntry> routes = new ArrayList<>();
@@ -57,6 +59,14 @@ public class RouteRegistry {
 
     public int getRouteCount() {
         return routes.size();
+    }
+
+    public List<Route> getAllRoutes() {
+        List<Route> allRoutes = new ArrayList<>();
+        for (RouteEntry entry : routes) {
+            allRoutes.add(entry.route);
+        }
+        return allRoutes;
     }
 
     private record RouteEntry(Route route, PathMatcher matcher) {

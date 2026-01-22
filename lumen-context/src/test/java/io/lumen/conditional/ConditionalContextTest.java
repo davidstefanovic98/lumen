@@ -41,7 +41,7 @@ class ConditionalContextTest {
     @Test
     void testConditionalRegistration() {
         AnnotationApplicationContext context = new AnnotationApplicationContext(TestConfig.class);
-
+        context.initialize();
         // Dev service should always exist
         TestConfig.DevService dev = context.getLight(TestConfig.DevService.class);
         assertNotNull(dev);

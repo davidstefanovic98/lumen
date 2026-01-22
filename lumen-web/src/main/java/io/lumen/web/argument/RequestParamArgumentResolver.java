@@ -6,6 +6,7 @@ import io.lumen.web.exception.MissingRequestParameterException;
 import io.lumen.web.exception.PrimitiveTypeRequestParameterException;
 import io.lumen.web.util.ObjectBinder;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jdk.dynalink.linker.support.TypeUtilities;
 
 import java.lang.reflect.Parameter;
@@ -14,7 +15,7 @@ import java.util.Map;
 import static io.lumen.web.util.TypeConverter.convert;
 import static io.lumen.web.util.TypeInspection.isSimpleType;
 
-class RequestParamArgumentResolver implements MethodArgumentResolver {
+public class RequestParamArgumentResolver implements MethodArgumentResolver {
 
     @Override
     public boolean supports(Parameter parameter) {
@@ -22,7 +23,7 @@ class RequestParamArgumentResolver implements MethodArgumentResolver {
     }
 
     @Override
-    public Object resolve(Parameter parameter, HttpServletRequest request, Map<String, String> pathVariables) {
+    public Object resolve(Parameter parameter, HttpServletRequest request, HttpServletResponse response, Map<String, String> pathVariables) {
         RequestParam rp = parameter.getAnnotation(RequestParam.class);
         Class<?> type = parameter.getType();
 

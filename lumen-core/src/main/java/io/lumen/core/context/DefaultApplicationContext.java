@@ -4,6 +4,7 @@ import io.lumen.core.component.*;
 import io.lumen.core.component.processor.ApplicationContextAwareProcessor;
 import io.lumen.core.component.processor.DefaultDependencyProvider;
 import io.lumen.core.component.processor.DependencyProvider;
+import io.lumen.core.component.processor.PostConstructProcessor;
 import io.lumen.core.config.Config;
 
 import java.util.List;
@@ -116,5 +117,6 @@ public class DefaultApplicationContext implements ApplicationContext {
 
     private void registerDefaultProcessors() {
         lightContainer.addPostProcessor(new ApplicationContextAwareProcessor(this));
+        lightContainer.addPostProcessor(new PostConstructProcessor());
     }
 }

@@ -4,11 +4,12 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Type;
+import java.util.List;
 
 /**
  * An interface for converting HTTP messages to and from Java objects.
  */
-interface HttpMessageConverter {
+public interface HttpMessageConverter {
 
     /**
      * Checks if the converter can read the given class and content type.
@@ -55,4 +56,15 @@ interface HttpMessageConverter {
             Object object,
             Class<?> type,
             HttpServletResponse response) throws Exception;
+
+    List<MediaType> getSupportedMediaTypes();
+
+    default boolean canWrite(Class<?> clazz, MediaType mediaType) {
+        if (!canWrite(clazz, (String) null)) {
+            return false;
+        }
+
+        return getSupportedMediaTypes().stream()
+                .anyMatch(supported -> supported.isCompatibleWith(mediaType));
+    }
 }

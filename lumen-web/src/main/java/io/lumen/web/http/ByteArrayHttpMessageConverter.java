@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.OutputStream;
 import java.lang.reflect.Type;
+import java.util.List;
 
 class ByteArrayHttpMessageConverter implements HttpMessageConverter {
 
@@ -31,5 +32,10 @@ class ByteArrayHttpMessageConverter implements HttpMessageConverter {
         try (OutputStream os = response.getOutputStream()) {
             os.write(bytes);
         }
+    }
+
+    @Override
+    public List<MediaType> getSupportedMediaTypes() {
+        return List.of(MediaType.APPLICATION_OCTET_STREAM);
     }
 }

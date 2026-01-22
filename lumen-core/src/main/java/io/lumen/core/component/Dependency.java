@@ -14,16 +14,17 @@ public class Dependency {
     private final Class<?>[] qualifiers;
     private final DependencyType depType;
     private final String valueKey;
+    private final boolean lazy;
 
     public Dependency(Class<?> type) {
-        this(type, null, true, false, null, DependencyType.LIGHT, null);
+        this(type, null, true, false, null, DependencyType.LIGHT, null, false);
     }
 
     public Dependency(Class<?> type, String name) {
-        this(type, name, true, false, null, DependencyType.LIGHT, null);
+        this(type, name, true, false, null, DependencyType.LIGHT, null, false);
     }
 
-    public Dependency(Class<?> type, String name, boolean required, boolean collection, Class<?>[] qualifiers, DependencyType depType, String valueKey) {
+    public Dependency(Class<?> type, String name, boolean required, boolean collection, Class<?>[] qualifiers, DependencyType depType, String valueKey, boolean lazy) {
         this.type = type;
         this.name = name;
         this.required = required;
@@ -31,6 +32,7 @@ public class Dependency {
         this.qualifiers = qualifiers;
         this.depType = depType != null ? depType : DependencyType.LIGHT;
         this.valueKey = valueKey;
+        this.lazy = lazy;
     }
 
     /**
@@ -77,6 +79,10 @@ public class Dependency {
 
     public String getValueKey() {
         return valueKey;
+    }
+
+    public boolean isLazy() {
+        return lazy;
     }
 
     public enum DependencyType {

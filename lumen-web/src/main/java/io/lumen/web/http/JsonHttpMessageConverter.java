@@ -5,8 +5,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.databind.ObjectMapper;
 
 import java.lang.reflect.Type;
+import java.util.List;
 
-public class JsonHttpMessageConverter implements HttpMessageConverter {
+class JsonHttpMessageConverter implements HttpMessageConverter {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -22,15 +23,17 @@ public class JsonHttpMessageConverter implements HttpMessageConverter {
 
     @Override
     public boolean canWrite(Class<?> clazz, String contentType) {
-        if (clazz == String.class || clazz == byte[].class) {
-            return false;
-        }
-        return contentType == null || contentType.contains("application/json");
+        return clazz != String.class && clazz != byte[].class;
     }
 
     @Override
     public void write(Object object, Class<?> type, HttpServletResponse response) throws Exception {
         response.setContentType("application/json;charset=UTF-8");
         objectMapper.writeValue(response.getOutputStream(), object);
+    }
+
+    @Override
+    public List<MediaType> getSupportedMediaTypes() {
+        return List.of(MediaType.APPLICATION_OCTET_STREAM);
     }
 }

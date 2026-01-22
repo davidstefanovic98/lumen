@@ -5,6 +5,8 @@ import io.lumen.web.http.ResponseEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.lang.reflect.InvocationTargetException;
+
 public class GlobalExceptionHandleResolver implements ExceptionResolver {
     private final ControllerAdviceRegistry registry;
     private final HttpMessageConverterRegistry converterRegistry;
@@ -18,17 +20,33 @@ public class GlobalExceptionHandleResolver implements ExceptionResolver {
 
     @Override
     public boolean resolve(HttpServletRequest req, HttpServletResponse resp, Exception ex) {
-        HandlerMethod handler = registry.findHandler(ex);
-        if (handler == null)
-            return false;
+        return resolveRecursively(req, resp, ex);
+    }
 
-        try {
-            Object result = handler.method().invoke(handler.light(), ex);
-            handleResult(result, resp);
-            return true;
-        } catch (Exception e) {
-            return false;
+    private boolean resolveRecursively(HttpServletRequest req, HttpServletResponse resp, Throwable throwable) {
+        if (throwable == null) return false;
+
+        HandlerMethod handler = registry.findHandler(throwable);
+
+        if (handler != null) {
+            try {
+                Object result = handler.method().invoke(handler.light(), throwable);
+                handleResult(result, resp);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
         }
+
+        Throwable nextToTry = (throwable instanceof InvocationTargetException ite)
+                ? ite.getTargetException()
+                : throwable.getCause();
+
+        if (nextToTry != null && nextToTry != throwable) {
+            return resolveRecursively(req, resp, nextToTry);
+        }
+
+        return false;
     }
 
     private void handleResult(Object result, HttpServletResponse resp) {

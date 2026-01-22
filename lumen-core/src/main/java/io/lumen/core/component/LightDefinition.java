@@ -10,7 +10,7 @@ import java.util.function.Supplier;
  */
 public class LightDefinition {
     private final String name;
-    private final Class<?> type;
+    private Class<?> type;
     private final LightSource source;
     private final Object sourceData;
     private boolean lazy;
@@ -18,6 +18,7 @@ public class LightDefinition {
     private String profile;
     private Executable executable;
     private Supplier<Boolean> condition;
+    private DefinitionOrigin origin;
 
     private LightDefinition(String name, Class<?> type, LightSource source) {
         this.name = name;
@@ -82,6 +83,10 @@ public class LightDefinition {
         FACTORY
     }
 
+    public enum DefinitionOrigin {
+       EXTERNAL
+    }
+
     public String getName() {
         return name;
     }
@@ -136,6 +141,18 @@ public class LightDefinition {
 
     public void setCondition(Supplier<Boolean> condition) {
         this.condition = condition;
+    }
+
+    public void setType(Class<?> type) {
+        this.type = type;
+    }
+
+    public DefinitionOrigin getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(DefinitionOrigin origin) {
+        this.origin = origin;
     }
 
     @Override

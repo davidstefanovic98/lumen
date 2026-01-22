@@ -76,6 +76,6 @@ public class DefaultLightAnalyzer implements LightAnalyzer {
             type = getGenericType(parameter);
         }
 
-        return new Dependency(type, name, true, isCollection, null, Dependency.DependencyType.LIGHT, null);
+        return new Dependency(type, name, true, isCollection, null, Dependency.DependencyType.LIGHT, null, false);
     }
 }

@@ -18,7 +18,6 @@
     </properties>
 
     <dependencies>
-
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-context</artifactId>
@@ -27,7 +26,13 @@
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
-            <artifactId>lumen-web</artifactId>
+            <artifactId>lumen-web-mvc</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.lumen</groupId>
+            <artifactId>lumen-web-thymeleaf</artifactId>
             <version>0.1.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>

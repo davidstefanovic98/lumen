@@ -1,37 +1,12 @@
 package io.lumen.core.logging;
 
-import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
-import java.util.logging.LogManager;
 
 /**
  * Fallback adapter using java.util.logging when SLF4J is not available.
  */
 class JulLoggerAdapter implements LoggerAdapter {
 
-    static {
-        configureJul();
-    }
-
-    private static void configureJul() {
-        LogManager.getLogManager().reset();
-
-        ConsoleHandler handler = new ConsoleHandler() {
-            @Override
-            protected synchronized void setOutputStream(java.io.OutputStream out) throws SecurityException {
-                super.setOutputStream(System.out);
-            }
-        };
-        handler.setLevel(Level.ALL);
-        handler.setFormatter(new LumenLogFormatter());
-        java.util.logging.Logger rootLogger = java.util.logging.Logger.getLogger("");
-        rootLogger.addHandler(handler);
-        rootLogger.setLevel(Level.INFO);
-
-        java.util.logging.Logger.getLogger("org.apache.catalina").setLevel(Level.WARNING);
-        java.util.logging.Logger.getLogger("org.apache.coyote").setLevel(Level.WARNING);
-        java.util.logging.Logger.getLogger("org.apache.tomcat").setLevel(Level.WARNING);
-    }
     @Override
     public Logger createLogger(String name) {
         return new JulLogger(java.util.logging.Logger.getLogger(name));

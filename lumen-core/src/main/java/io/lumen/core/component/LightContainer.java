@@ -65,6 +65,19 @@ public class LightContainer {
         return def;
     }
 
+    public void registerExternalInstance(Class<?> type, Object instance) {
+        LightDefinition def = LightDefinition.fromInstance(type.getSimpleName(), instance);
+        def.setOrigin(LightDefinition.DefinitionOrigin.EXTERNAL);
+        def.setType(type);
+        LightMetadata metadata = analyzer.analyze(def);
+
+        LightInstance lightInstance = new LightInstance(metadata);
+        lightInstance.setInstance(instance);
+        lightInstance.setState(LightInstance.LightState.READY);
+
+        lights.put(def.getName(), lightInstance);
+    }
+
     protected void registerDefinition(LightDefinition definition) {
         if (registeredDefinitions.containsKey(definition.getName())) {
             return;
@@ -77,8 +90,14 @@ public class LightContainer {
      * Clears old instances and re-instantiates eager singletons.
      */
     public void initialize() {
-        lights.clear();
+        lights.entrySet().removeIf(entry ->
+                entry.getValue().getMetadata().getDefinition().getOrigin() != LightDefinition.DefinitionOrigin.EXTERNAL
+        );
         for (LightDefinition def : registeredDefinitions.values()) {
+            if (lights.containsKey(def.getName())) {
+                continue;
+            }
+
             LightMetadata metadata = analyzer.analyze(def);
 
             if (def.getProfile() != null && !context.getEnvironment().isProfileActive(def.getProfile())) {
@@ -171,6 +190,10 @@ public class LightContainer {
         instantiator.addPreProcessor(processor);
     }
 
+    public List<LightProcessor> getPostProcessors() {
+        return instantiator.getPostProcessors();
+    }
+
     public void setApplicationContext(ApplicationContext context) {
         this.context = context;
     }
@@ -222,6 +245,30 @@ public class LightContainer {
         return type.cast(doGetOrInstantiate(matches.getFirst()));
     }
 
+    <T> T doGetLightByName(String name) {
+        LightInstance light = lights.get(name);
+        if (light == null) {
+            throw new NoSuchElementException("No light found with name: " + name);
+        }
+        return (T) doGetOrInstantiate(light);
+    }
+
+
+    /**
+     * Finds all registered lights that implement or extend the specified type.
+     */
+    <T> List<T> doGetLightsByType(Class<T> type) {
+        List<T> results = new ArrayList<>();
+
+        for (LightInstance light : lights.values()) {
+            if (type.isAssignableFrom(light.getType())) {
+                Object instance = doGetOrInstantiate(light);
+                results.add(type.cast(instance));
+            }
+        }
+        results.sort(OrderComparator.INSTANCE);
+        return results;
+    }
 
     private Object getOrInstantiate(LightInstance light) {
         LightDefinition def = light.getMetadata().getDefinition();

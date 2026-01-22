@@ -1,12 +1,15 @@
 package io.lumen.web.http;
 
+import io.lumen.context.annotation.Component;
 import io.lumen.web.exception.HttpMessageConvertException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.List;
 
+@Component
 public class HttpMessageConverterRegistry {
 
     private final List<HttpMessageConverter> converters;
@@ -61,5 +64,30 @@ public class HttpMessageConverterRegistry {
         throw new HttpMessageConvertException(
                 "No converter found for " + type.getSimpleName() + " to " + contentType
         );
+    }
+
+    public HttpMessageConverter findBestConverter(Class<?> clazz, String acceptHeader) {
+        List<MediaType> requestedTypes = parseAcceptHeader(acceptHeader);
+
+        for (MediaType requested : requestedTypes) {
+            if (requested.getQuality() <= 0)
+                continue;
+
+            for (HttpMessageConverter converter : converters) {
+                if (converter.canWrite(clazz, requested)) {
+                    return converter;
+                }
+            }
+        }
+        return null;
+    }
+
+    private List<MediaType> parseAcceptHeader(String header) {
+        if (header == null || header.isBlank()) {
+            return List.of(MediaType.ALL);
+        }
+        return Arrays.stream(header.split(","))
+                .map(MediaType::parse)
+                .toList();
     }
 }

@@ -1,67 +1,51 @@
 package io.lumen.web;
 
+import io.lumen.context.annotation.Component;
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
+import io.lumen.web.handler.RestResultHandler;
+import io.lumen.web.handler.RouteResultHandler;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.http.HttpStatus;
-import io.lumen.web.http.ResponseEntity;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Invokes a route method with resolved parameters.
  */
-class RouteInvoker {
+@Component
+public class RouteInvoker {
     private final CompositeMethodArgumentResolver argumentResolver;
-    private final HttpMessageConverterRegistry converterRegistry;
+    private final List<RouteResultHandler> resultHandlers = new ArrayList<>();
 
-    RouteInvoker(HttpMessageConverterRegistry registry) {
-        this.converterRegistry = registry;
-        this.argumentResolver = new CompositeMethodArgumentResolver(registry);
+    public RouteInvoker(HttpMessageConverterRegistry registry, CompositeMethodArgumentResolver argResolver) {
+        this.argumentResolver = argResolver;
+        resultHandlers.add(new RestResultHandler(registry));
+    }
+
+    public void addResultHandler(RouteResultHandler handler) {
+        resultHandlers.add(handler);
     }
 
     void invokeAndWrite(RouteMatch match, HttpServletRequest request, HttpServletResponse response) throws Exception {
         Route route = match.route();
-        Method method = route.getMethod();
-        Object controller = route.getController();
-
         Object[] args = argumentResolver.resolveArguments(
-                method.getParameters(),
-                request,
-                match.pathVariables()
+                route.getMethod().getParameters(), request, response, match.pathVariables()
         );
 
-        Object returnValue = method.invoke(controller, args);
+        Object returnValue = route.getMethod().invoke(route.getController(), args);
+
+        for (RouteResultHandler handler : resultHandlers) {
+            if (handler.supports(returnValue, route)) {
+                handler.handle(returnValue, args, request, response);
+                return;
+            }
+        }
 
         if (returnValue == null) {
             response.setStatus(HttpStatus.NO_CONTENT.value());
-            return;
-        }
-
-        Object bodyToConvert;
-        if (returnValue instanceof ResponseEntity<?> responseEntity) {
-            response.setStatus(responseEntity.getStatus());
-            responseEntity.getHeaders().forEach(response::setHeader);
-            bodyToConvert = responseEntity.getBody();
-
-            if (bodyToConvert == null)
-                return;
-        } else {
-            bodyToConvert = returnValue;
-            response.setStatus(HttpStatus.OK.value());
-        }
-        if (route.isRest()) {
-            if (response.getContentType() == null) {
-                String contentType = (route.getProduces() != null && route.getProduces().length > 0)
-                        ? route.getProduces()[0]
-                        : "application/json";
-                response.setContentType(contentType);
-            }
-
-            converterRegistry.write(bodyToConvert, bodyToConvert.getClass(), response);
-        } else {
-            // render view logic
         }
     }
 }

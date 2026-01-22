@@ -1,10 +1,12 @@
 package io.lumen.web.exception.handle;
 
+import io.lumen.context.annotation.Component;
 import io.lumen.web.annotation.ExceptionHandler;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
+@Component
 public class ControllerAdviceRegistry {
     private final Map<Class<? extends Throwable>, HandlerMethod> exceptionLookup = new HashMap<>();
 

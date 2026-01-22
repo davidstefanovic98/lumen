@@ -147,11 +147,13 @@ class AnnotationLightAnalyzer implements LightAnalyzer {
         boolean isCollection = Collection.class.isAssignableFrom(type);
         if (isCollection) type = ReflectionUtil.getGenericType(parameter);
 
+        boolean isLazy = parameter.isAnnotationPresent(Lazy.class);
+
         if (parameter.isAnnotationPresent(Value.class)) {
             String key = parameter.getAnnotation(Value.class).value();
-            return new Dependency(type, null, true, isCollection, null, Dependency.DependencyType.VALUE, key);
+            return new Dependency(type, null, true, isCollection, null, Dependency.DependencyType.VALUE, key, isLazy);
         }
 
-        return new Dependency(type, parameter.getName(), true, isCollection, null, Dependency.DependencyType.LIGHT, null);
+        return new Dependency(type, parameter.getName(), true, isCollection, null, Dependency.DependencyType.LIGHT, null, isLazy);
     }
 }

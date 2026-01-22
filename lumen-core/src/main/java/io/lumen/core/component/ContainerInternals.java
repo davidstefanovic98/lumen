@@ -1,6 +1,8 @@
 package io.lumen.core.component;
 
 
+import java.util.List;
+
 final class ContainerInternals implements ContainerInternalAccess {
 
     private final LightContainer container;
@@ -22,5 +24,15 @@ final class ContainerInternals implements ContainerInternalAccess {
     @Override
     public LightInstance getLightInstance(String name) {
         return container.getLightInstance(name);
+    }
+
+    @Override
+    public <T> List<T> getLightsByType(Class<T> type) {
+        return container.doGetLightsByType(type);
+    }
+
+    @Override
+    public <T> T getLightByName(String name) {
+        return container.doGetLightByName(name);
     }
 }

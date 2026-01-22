@@ -8,7 +8,7 @@ import io.lumen.web.http.ResponseEntity;
 @RequestMapping("/api/books")
 public class BookController {
 
-    @GetMapping("/{id}")
+    @GetMapping(value = "/{id}")
     public String getBook(@PathVariable("id") int id) {
         return "Book #" + id;
     }
@@ -19,8 +19,8 @@ public class BookController {
     }
 
     @GetMapping("/not-required")
-    public String getNotRequired(@RequestParam(required = false) Integer id) {
-        return "Book #" + id;
+    public ResponseEntity<String> getNotRequired(@RequestParam(required = false) Integer id) {
+        return ResponseEntity.ok("Book #" + id);
     }
 
     @GetMapping

@@ -8,6 +8,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.AbstractList;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Factory for creating proxies for lazy or intercepted objects.
@@ -53,6 +54,26 @@ public class ProxyFactory {
                         }
                         return method.invoke(delegate, args);
                     }
+                }
+        );
+    }
+
+    /**
+     * Creates a lazy proxy that resolves to a value provided by a Supplier.
+     * Use this for "External" dependencies like ServletContext or Database Connections.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T createLazyFromSupplier(Class<T> type, Supplier<T> supplier) {
+        return (T) Proxy.newProxyInstance(
+                type.getClassLoader(),
+                new Class<?>[]{type},
+                (proxy, method, args) -> {
+                    T delegate = supplier.get();
+                    if (delegate == null) {
+                        throw new IllegalStateException("Dependency of type " + type.getSimpleName() +
+                                " is not yet available (Server not started?)");
+                    }
+                    return method.invoke(delegate, args);
                 }
         );
     }

@@ -61,6 +61,6 @@ class LumenLogFormatter extends Formatter {
         }
         shortened.append(parts[parts.length - 1]);
 
-        return String.format("%-40s", shortened.toString());
+        return String.format("%-40s", shortened);
     }
 }

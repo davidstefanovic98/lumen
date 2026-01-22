@@ -41,6 +41,14 @@ public class DefaultLightCreator {
         postProcessors.add(processor);
     }
 
+    public List<LightProcessor> getPreProcessors() {
+        return preProcessors;
+    }
+
+    public List<LightProcessor> getPostProcessors() {
+        return postProcessors;
+    }
+
     public void create(LightInstance light, LightContainer container) {
         if (light.getState() == LightInstance.LightState.READY)
            return;

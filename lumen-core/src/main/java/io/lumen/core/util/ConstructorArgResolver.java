@@ -36,15 +36,22 @@ public final class ConstructorArgResolver {
                 arg = provider.provide(dep);
             } else {
                 LightInstance depLight = resolvedMap.get(dep);
-                if (depLight != null) {
+                if (dep.isLazy()) {
+                    arg = ProxyFactory.createLazy(container, depLight, dep.getType());
+                } else if (depLight != null) {
                     arg = depLight.getMetadata().getDefinition().isLazy()
                             ? ProxyFactory.createLazy(container, depLight, dep.getType())
                             : depLight.getInstance();
+
+                    // Safety check: if it's not lazy but instance is null,
+                    // it means we have an ordering issue in the container.
+                    if (arg == null && dep.isRequired()) {
+                        throw new LightInstantiationException(
+                                "Dependency " + dep.getType().getSimpleName() + " exists but is not yet instantiated. " +
+                                        "Try marking it with @Lazy in the constructor of " + light.getName());
+                    }
                 } else if (dep.isRequired()) {
-                    throw new LightInstantiationException(
-                            "Required dependency not resolved: " + dep +
-                                    " for light: " + light.getName()
-                    );
+                    throw new LightInstantiationException("Required dependency not resolved: " + dep);
                 }
             }
 

@@ -1,12 +1,27 @@
 package io.lumen.web.context;
 
 import io.lumen.context.AnnotationApplicationContext;
+import io.lumen.core.component.LightInstance;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.core.logging.StartupBanner;
-import io.lumen.web.RouteRegistry;
 import io.lumen.web.DispatcherServlet;
+import io.lumen.web.RouteInvoker;
+import io.lumen.web.RouteRegistry;
+import io.lumen.web.argument.CompositeMethodArgumentResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
+import io.lumen.web.filter.LumenFilter;
+import io.lumen.web.http.HttpMessageConverterRegistry;
+import io.lumen.web.resource.ResourceProvider;
+import io.lumen.web.resource.StaticResourceResultHandler;
+import io.lumen.web.view.ViewResolver;
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterRegistration;
+import jakarta.servlet.ServletContext;
+
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.List;
 
 public class AnnotationWebApplicationContext implements WebApplicationContext {
 
@@ -14,23 +29,29 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
     private final AnnotationApplicationContext context;
     private final RouteRegistry routeRegistry;
     private final ControllerAdviceRegistry controllerAdviceRegistry;
+    private final RouteInvoker routeInvoker;
+    private final CompositeMethodArgumentResolver argumentResolver;
+    private final HttpMessageConverterRegistry converterRegistry;
+    private ViewResolver viewResolver;
     private final int port;
     private WebServer webServer;
 
     public AnnotationWebApplicationContext(Class<?> configClass, int port) {
-        this.context = new AnnotationApplicationContext(configClass);
-        logger.info("Initializing Lumen Web Application Context");
         this.port = port;
-        logger.debug("Configuration class: {}", configClass.getName());
-
+        this.context = new AnnotationApplicationContext();
         this.routeRegistry = new RouteRegistry();
         this.controllerAdviceRegistry = new ControllerAdviceRegistry();
-        ControllerScanner.scanControllers(context.getLightContainer().getLights().values(), routeRegistry);
-        GlobalExceptionHandlerScanner.scanForControllerAdvice(
-                context.getLightContainer().getLights().values(),
-                controllerAdviceRegistry
-        );
-        logger.info("Application context initialized successfully");
+        this.argumentResolver = new CompositeMethodArgumentResolver();
+        this.converterRegistry = new HttpMessageConverterRegistry();
+        this.routeInvoker = new RouteInvoker(converterRegistry, argumentResolver);
+
+        var container = context.getLightContainer();
+        container.registerExternalInstance(CompositeMethodArgumentResolver.class, argumentResolver);
+        container.registerExternalInstance(HttpMessageConverterRegistry.class, converterRegistry);
+        container.registerExternalInstance(RouteInvoker.class, routeInvoker);
+        container.registerExternalInstance(RouteRegistry.class, routeRegistry);
+        logger.info("Lumen Web Application Context: Scanning configuration class [{}]", configClass.getSimpleName());
+        context.scan(configClass);
     }
 
     @Override
@@ -38,18 +59,33 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         try {
             StartupBanner.print(logger);
 
-            logger.info("Starting web server on port {}", port);
-
             webServer = new WebServer(port);
-            webServer.addServlet("dispatcher", new DispatcherServlet(routeRegistry, controllerAdviceRegistry));
-
+            webServer.addContextListener(new LumenContextInitializer(this));
             webServer.start();
 
-            logger.info("Lumen application started successfully");
-            logger.info("Server is running at http://localhost:{}", port);
+            var container = context.getLightContainer();
+
+            var converters = container.internals().getLightByType(HttpMessageConverterRegistry.class);
+            var invoker = container.internals().getLightByType(RouteInvoker.class);
+            var resProvider = container.internals().getLightByType(ResourceProvider.class);
+            var resHandler = container.internals().getLightByType(StaticResourceResultHandler.class);
+
+            logger.info("Initializing DispatcherServlet");
+            DispatcherServlet dispatcher = new DispatcherServlet(
+                    routeRegistry,
+                    controllerAdviceRegistry,
+                    converters,
+                    invoker,
+                    resProvider,
+                    resHandler
+            );
+
+            webServer.addServlet("dispatcher", dispatcher, "/*");
+
+            logger.info("Lumen application started successfully on port: {}", port);
+            webServer.await();
         } catch (Exception e) {
-            logger.error("Failed to start web server", e);
-            throw new RuntimeException("Web server startup failed", e);
+            logger.error("Critical failure during web server startup", e);
         }
     }
 
@@ -63,6 +99,48 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
 
     public ControllerAdviceRegistry getControllerAdviceRegistry() {
         return controllerAdviceRegistry;
+    }
+
+    public ViewResolver getViewResolver() {
+        return viewResolver;
+    }
+
+    /**
+     * This is the Bridge Method that refreshes web components like controllers and exception handlers.
+     */
+    public void refreshWebComponents() {
+        Collection<LightInstance> lights = context.getLightContainer().getLights().values();
+
+        ControllerScanner.scanControllers(lights, routeRegistry);
+        GlobalExceptionHandlerScanner.scanForControllerAdvice(lights, controllerAdviceRegistry);
+
+        this.viewResolver = context.getLight(ViewResolver.class);
+
+        logger.info("Web components refreshed: {} routes registered", routeRegistry.getRouteCount());
+    }
+
+    public void registerFilters(ServletContext servletContext) {
+        logger.info("Registering web filters...");
+
+        // The container already sorts these because we updated doGetLightsByType!
+        List<LumenFilter> filters = context.getLightContainer()
+                .internals()
+                .getLightsByType(LumenFilter.class);
+
+        for (LumenFilter filter : filters) {
+            String filterName = filter.getClass().getSimpleName();
+
+            FilterRegistration.Dynamic registration = servletContext.addFilter(filterName, filter);
+
+            if (registration != null) {
+                registration.addMappingForUrlPatterns(
+                        EnumSet.allOf(DispatcherType.class),
+                        true,
+                        "/*"
+                );
+                logger.info("Filter [{}] registered and mapped to /*", filterName);
+            }
+        }
     }
 
     @Override

@@ -1,7 +1,9 @@
 package io.lumen.context;
 
 import io.lumen.core.component.*;
+import io.lumen.core.component.processor.ApplicationContextAwareProcessor;
 import io.lumen.core.component.processor.DependencyProvider;
+import io.lumen.core.component.processor.PostConstructProcessor;
 import io.lumen.core.config.Config;
 import io.lumen.core.context.ApplicationContext;
 import io.lumen.core.context.Environment;
@@ -25,6 +27,21 @@ public class AnnotationApplicationContext implements ApplicationContext {
         this.config = new Config();
         new ConfigProcessor(container, configClass);
         container.initialize();
+        registerDefaultProcessors();
+    }
+
+    public AnnotationApplicationContext() {
+        this.environment = new Environment();
+        this.container = new LightContainer(this,
+                new AnnotationLightAnalyzer(),
+                getLightCreator());
+        this.container.setApplicationContext(this);
+        this.config = new Config();
+        registerDefaultProcessors();
+    }
+
+    public void scan(Class<?> configClass) {
+        new ConfigProcessor(container, configClass);
     }
 
     private DefaultLightCreator getLightCreator() {
@@ -89,5 +106,10 @@ public class AnnotationApplicationContext implements ApplicationContext {
     @Override
     public void refresh() {
         container.refresh();
+    }
+
+    private void registerDefaultProcessors() {
+        getLightContainer().addPostProcessor(new ApplicationContextAwareProcessor(this));
+        getLightContainer().addPostProcessor(new PostConstructProcessor());
     }
 }
