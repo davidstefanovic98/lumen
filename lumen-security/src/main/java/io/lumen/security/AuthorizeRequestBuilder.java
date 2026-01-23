@@ -19,6 +19,10 @@ public class AuthorizeRequestBuilder {
         return new RegexMatcherConfig(this, regexes);
     }
 
+    public AnyRequestConfigurer anyRequest() {
+        return new AnyRequestConfigurer(this.rules);
+    }
+
     public static class AntMatcherConfig {
         private final AuthorizeRequestBuilder builder;
         private final String[] patterns;
@@ -65,6 +69,22 @@ public class AuthorizeRequestBuilder {
                 builder.rules.add(new AuthorizationRule(new RegexRequestMatcher(regex), role));
             }
             return builder;
+        }
+    }
+
+    public static class AnyRequestConfigurer {
+        private final List<AuthorizationRule> rules;
+
+        public AnyRequestConfigurer(List<AuthorizationRule> rules) {
+            this.rules = rules;
+        }
+
+        public void authenticated() {
+            rules.add(new AuthorizationRule(new AnyPathRequestMatcher(), "IS_AUTHENTICATED"));
+        }
+
+        public void permitAll() {
+            rules.add(new AuthorizationRule(new AnyPathRequestMatcher(), "PERMIT_ALL"));
         }
     }
 }

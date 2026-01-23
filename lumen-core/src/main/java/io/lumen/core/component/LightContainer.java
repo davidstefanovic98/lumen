@@ -235,21 +235,20 @@ public class LightContainer {
                 matches.add(light);
             }
         }
-
-        if (matches.isEmpty())
-            throw new NoLightFoundException("No light found for type: " + type.getName());
-
-        if (matches.size() > 1)
-            throw new MultipleLightFoundException("Multiple lights found for type: " + type.getName());
-
+//
+//        if (matches.isEmpty())
+//            throw new NoLightFoundException("No light found for type: " + type.getName());
+//
+//        if (matches.size() > 1)
+//            throw new MultipleLightFoundException("Multiple lights found for type: " + type.getName());
+        if (matches.isEmpty()) {
+            return null;
+        }
         return type.cast(doGetOrInstantiate(matches.getFirst()));
     }
 
     <T> T doGetLightByName(String name) {
         LightInstance light = lights.get(name);
-        if (light == null) {
-            throw new NoSuchElementException("No light found with name: " + name);
-        }
         return (T) doGetOrInstantiate(light);
     }
 

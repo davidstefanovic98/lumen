@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.lang.reflect.Parameter;
 import java.util.Map;
 
-class HttpServletResponseArgumentResolver implements MethodArgumentResolver {
+public class HttpServletResponseArgumentResolver implements MethodArgumentResolver {
 
     @Override
     public boolean supports(Parameter parameter) {

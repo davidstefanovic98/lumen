@@ -16,18 +16,27 @@ import java.nio.file.AccessDeniedException;
 @Order(99)
 public class ExceptionTranslationFilter extends OncePerRequestFilter {
 
+    private final String loginPage;
+
+    public ExceptionTranslationFilter(String loginPage) {
+        this.loginPage = loginPage;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         try {
             chain.doFilter(request, response);
-        } catch (AccessDeniedException e) {
-            handleException(request, response, e);
         } catch (Exception e) {
-            if (e.getCause() instanceof AccessDeniedException) {
-                handleException(request, response, (AccessDeniedException) e.getCause());
+            Throwable rootCause = e;
+            while (rootCause.getCause() != null && !(rootCause instanceof AccessDeniedException)) {
+                rootCause = rootCause.getCause();
+            }
+
+            if (rootCause instanceof AccessDeniedException) {
+                handleException(request, response, (AccessDeniedException) rootCause);
             } else {
-                throw e;
+                throw new ServletException(e);
             }
         }
     }
@@ -36,7 +45,7 @@ public class ExceptionTranslationFilter extends OncePerRequestFilter {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         if (auth == null || !auth.isAuthenticated()) {
-            response.sendRedirect("/login");
+            response.sendRedirect(loginPage);
         } else {
             renderAccessDeniedPage(response);
         }

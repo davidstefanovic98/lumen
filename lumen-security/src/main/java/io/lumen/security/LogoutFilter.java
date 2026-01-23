@@ -2,7 +2,6 @@ package io.lumen.security;
 
 import io.lumen.core.annotation.Order;
 import io.lumen.security.context.SecurityContextHolder;
-import io.lumen.web.http.HttpMethod;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,13 +12,17 @@ import java.io.IOException;
 
 @Order(4)
 public class LogoutFilter extends OncePerRequestFilter {
-    private String logoutUrl = "/logout";
-    private String logoutSuccessUrl = "/login?logout";
+    private final String logoutUrl;
+    private final String logoutSuccessUrl;
+
+    public LogoutFilter(String logoutUrl, String logoutSuccessUrl) {
+        this.logoutUrl = logoutUrl;
+        this.logoutSuccessUrl = logoutSuccessUrl;
+    }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
 
         if (requiresLogout(request)) {
             performLogout(request, response);
@@ -29,7 +32,7 @@ public class LogoutFilter extends OncePerRequestFilter {
     }
 
     private boolean requiresLogout(HttpServletRequest request) {
-        return HttpMethod.POST.matches(request.getMethod()) && logoutUrl.equals(request.getPathInfo());
+        return logoutUrl.equals(request.getRequestURI());
     }
 
     private void performLogout(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -39,13 +42,5 @@ public class LogoutFilter extends OncePerRequestFilter {
         }
         SecurityContextHolder.clear();
         response.sendRedirect(logoutSuccessUrl);
-    }
-
-    public void setLogoutUrl(String logoutUrl) {
-        this.logoutUrl = logoutUrl;
-    }
-
-    public void setLogoutSuccessUrl(String logoutSuccessUrl) {
-        this.logoutSuccessUrl = logoutSuccessUrl;
     }
 }

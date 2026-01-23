@@ -6,7 +6,7 @@ public class BCryptPasswordEncoder implements PasswordEncoder{
     private final int logRounds;
 
     public BCryptPasswordEncoder() {
-        this(10); // Default strength
+        this(10);
     }
 
     public BCryptPasswordEncoder(int logRounds) {
@@ -15,13 +15,11 @@ public class BCryptPasswordEncoder implements PasswordEncoder{
 
     @Override
     public String encode(CharSequence rawPassword) {
-        // Generates a salt and hashes the password
         return BCrypt.hashpw(rawPassword.toString(), BCrypt.gensalt(logRounds));
     }
 
     @Override
     public boolean matches(CharSequence rawPassword, String encodedPassword) {
-        // BCrypt.checkpw extracts the salt from the encodedPassword automatically
         return BCrypt.checkpw(rawPassword.toString(), encodedPassword);
     }
 }

@@ -20,10 +20,6 @@ public class HttpSessionSecurityContextRepository implements SecurityContextRepo
 
     @Override
     public void saveContext(SecurityContext context, HttpServletRequest request, HttpServletResponse response) {
-        if (response.isCommitted()) {
-            return;
-        }
-
         if (context.getAuthentication() != null) {
             var session = request.getSession(true);
             session.setAttribute(LUMEN_SECURITY_CONTEXT_KEY, context);

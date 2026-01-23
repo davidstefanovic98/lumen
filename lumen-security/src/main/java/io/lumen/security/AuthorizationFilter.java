@@ -34,19 +34,24 @@ public class AuthorizationFilter extends OncePerRequestFilter {
                     chain.doFilter(request, response);
                     return;
                 }
-
-                if (authentication == null || !authentication.isAuthenticated()) {
-                    throw new AccessDeniedException("Authentication required");
-                }
-
-                boolean hasRole = authentication.getAuthorities().contains(rule.requiredRole());
-                if (!hasRole) {
-                    throw new AccessDeniedException("Insufficient permissions");
+                if (!isAuthorized(authentication, rule.requiredRole())) {
+                    throw new AccessDeniedException("Insufficient permissions or not logged in");
                 }
                 chain.doFilter(request, response);
                 return;
             }
         }
         chain.doFilter(request, response);
+    }
+
+    private boolean isAuthorized(Authentication auth, String requiredAuthority) {
+        if (auth == null || !auth.isAuthenticated()) return false;
+
+        if ("IS_AUTHENTICATED".equals(requiredAuthority) || "AUTHENTICATED".equals(requiredAuthority)) {
+            return true;
+        }
+
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(requiredAuthority));
     }
 }

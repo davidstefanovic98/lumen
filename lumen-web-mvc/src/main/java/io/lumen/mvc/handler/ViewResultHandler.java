@@ -4,6 +4,7 @@ import io.lumen.web.Route;
 import io.lumen.web.flash.FlashMapManager;
 import io.lumen.web.handler.RouteResultHandler;
 import io.lumen.mvc.argument.ModelAndView;
+import io.lumen.web.http.HttpStatus;
 import io.lumen.web.view.ViewResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -49,11 +50,13 @@ public class ViewResultHandler implements RouteResultHandler {
                 }
             }
             String target = viewName.substring(9).trim();
-            if (target.startsWith("/")) {
-                resp.sendRedirect(req.getContextPath() + target);
-            } else {
-                resp.sendRedirect(target);
-            }
+            String contextPath = req.getContextPath();
+            if ("/".equals(contextPath))
+                contextPath = "";
+            String finalUrl = target.startsWith("/") ? contextPath + target : target;
+
+            resp.setStatus(HttpStatus.SEE_OTHER.value());
+            resp.setHeader("Location", finalUrl);
             return;
         }
 
@@ -62,8 +65,10 @@ public class ViewResultHandler implements RouteResultHandler {
             return;
         }
 
-        if (mavToUse == null) mavToUse = new ModelAndView();
-        if (viewName != null) mavToUse.setViewName(viewName);
+        if (mavToUse == null)
+            mavToUse = new ModelAndView();
+        if (viewName != null)
+            mavToUse.setViewName(viewName);
 
         viewResolver.resolve(mavToUse.getViewName(), mavToUse.getModel(), req, resp);
     }

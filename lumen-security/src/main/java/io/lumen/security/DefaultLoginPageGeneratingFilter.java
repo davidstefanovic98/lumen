@@ -1,8 +1,6 @@
 package io.lumen.security;
 
 import io.lumen.core.annotation.Order;
-import io.lumen.core.logging.Logger;
-import io.lumen.core.logging.LoggerFactory;
 import io.lumen.web.http.HttpMethod;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

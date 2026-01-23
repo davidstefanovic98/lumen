@@ -30,7 +30,6 @@ public class SecurityContextPersistenceFilter extends OncePerRequestFilter {
         try {
             SecurityContextHolder.setContext(contextBeforeChain);
             chain.doFilter(request, response);
-
         } finally {
             SecurityContext contextAfterChain = SecurityContextHolder.getContext();
             SecurityContextHolder.clear();

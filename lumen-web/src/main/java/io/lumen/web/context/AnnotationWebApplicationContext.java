@@ -11,9 +11,11 @@ import io.lumen.web.DispatcherServlet;
 import io.lumen.web.RouteInvoker;
 import io.lumen.web.RouteRegistry;
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
+import io.lumen.web.argument.MultipartArgumentResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
 import io.lumen.web.filter.LumenFilter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
+import io.lumen.web.multipart.MultipartConfig;
 import io.lumen.web.resource.ResourceProvider;
 import io.lumen.web.resource.StaticResourceResultHandler;
 import io.lumen.web.view.ViewResolver;
@@ -87,6 +89,7 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
                 initializer.onStartup();
             }
         }
+        this.argumentResolver.addResolver(new MultipartArgumentResolver(context.getLightContainer()));
         this.registerFilters(servletContext);
         this.registerDispatcherServlet(servletContext);
         this.refreshWebComponents();
@@ -104,7 +107,17 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
                 container.internals().getLightByType(StaticResourceResultHandler.class)
         );
 
-        servletContext.addServlet("dispatcher", dispatcher).addMapping("/*");
+        var registration = servletContext.addServlet("dispatcher", dispatcher);
+        registration.addMapping("/*");
+
+        var multipartConfig = container.internals().getLightByType(MultipartConfig.class);
+
+        if (multipartConfig != null) {
+            registration.setMultipartConfig(multipartConfig.toServletConfig());
+            logger.info("DispatcherServlet registered with custom MultipartConfig.");
+        } else {
+            logger.warn("Multipart support DISABLED: No MultipartConfig light found in context.");
+        }
         logger.info("DispatcherServlet registered at /*");
     }
 

@@ -30,6 +30,7 @@ public class DaoAuthenticationProvider implements AuthenticationProvider {
         if (passwordEncoder.matches(password, user.getPassword())) {
             return new UsernamePasswordAuthenticationToken(
                     user,
+                    null,
                     user.getAuthorities()
             );
         }

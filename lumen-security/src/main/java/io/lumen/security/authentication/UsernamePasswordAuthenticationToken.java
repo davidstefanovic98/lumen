@@ -20,11 +20,13 @@ public class UsernamePasswordAuthenticationToken implements Authentication {
         this.authenticated = false;
     }
 
-    public UsernamePasswordAuthenticationToken(Object principal, List<SimpleGrantedAuthority> authorities) {
+    public UsernamePasswordAuthenticationToken(Object principal,
+                                               Object credentials,
+                                               Collection<? extends GrantedAuthority> authorities) {
         this.principal = principal;
-        this.credentials = null;
-        this.authorities = authorities;
-        this.authenticated = true;
+        this.credentials = credentials;
+        this.authorities = (authorities == null) ? new ArrayList<>() : authorities;
+        this.authenticated = true; // This constructor is the "Seal of Approval"
     }
 
     @Override

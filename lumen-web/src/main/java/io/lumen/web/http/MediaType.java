@@ -10,6 +10,7 @@ public record MediaType(String type, String subtype, Map<String, String> paramet
     public static final MediaType APPLICATION_JSON = new MediaType("application", "json", Collections.emptyMap());
     public static final MediaType TEXT_PLAIN = new MediaType("text", "plain", Collections.emptyMap());
     public static final MediaType APPLICATION_OCTET_STREAM = new MediaType("application", "octet-stream", Collections.emptyMap());
+    public static final MediaType MULTIPART_FORM_DATA = new MediaType("multipart", "form-data", Collections.emptyMap());
 
     public static MediaType parse(String mediaType) {
         if (mediaType == null || mediaType.isBlank()) return ALL;
