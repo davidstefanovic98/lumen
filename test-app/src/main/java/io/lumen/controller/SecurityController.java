@@ -22,7 +22,6 @@ public class SecurityController {
         } else {
             report.put("status", "Security Context Active");
             report.put("principal", auth.getPrincipal());
-            report.put("username", auth.getName());
             report.put("authenticated", auth.isAuthenticated());
 
             report.put("authorities", auth.getAuthorities());

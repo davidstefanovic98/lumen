@@ -1,5 +1,7 @@
 package io.lumen.web.annotation;
 
+import io.lumen.web.http.HttpMethod;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -10,7 +12,7 @@ import java.lang.annotation.Target;
 public @interface RequestMapping {
     String value() default "";
     String path() default "";
-    String[] method() default {};
+    HttpMethod[] method() default {};
     String[] consumes() default {};
     String[] produces() default {};
 }

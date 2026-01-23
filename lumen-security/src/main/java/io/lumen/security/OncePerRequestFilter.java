@@ -17,12 +17,9 @@ public abstract class OncePerRequestFilter implements SecuritySubFilter {
     public final void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        if (!(request instanceof HttpServletRequest) || !(response instanceof HttpServletResponse)) {
+        if (!(request instanceof HttpServletRequest httpRequest) || !(response instanceof HttpServletResponse httpResponse)) {
             throw new ServletException("OncePerRequestFilter only supports HTTP requests");
         }
-
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String alreadyFilteredAttributeName = getAlreadyFilteredAttributeName();
 

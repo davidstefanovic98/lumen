@@ -5,6 +5,7 @@ import io.lumen.core.component.LightInstance;
 import io.lumen.web.Route;
 import io.lumen.web.RouteRegistry;
 import io.lumen.web.annotation.*;
+import io.lumen.web.http.HttpMethod;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -21,35 +22,35 @@ class ControllerScanner {
 
     static {
         MAPPING_ANNOTATIONS.put(GetMapping.class, new MappingInfo(
-                "GET",
+                HttpMethod.GET.name(),
                 a -> !((GetMapping) a).value().isEmpty() ? ((GetMapping) a).value() : "",
                 a -> ((GetMapping) a).consumes(),
                 a -> ((GetMapping) a).produces()
         ));
 
         MAPPING_ANNOTATIONS.put(PostMapping.class, new MappingInfo(
-                "POST",
+                HttpMethod.POST.name(),
                 a -> !((PostMapping) a).value().isEmpty() ? ((PostMapping) a).value() : "",
                 a -> ((PostMapping) a).consumes(),
                 a -> ((PostMapping) a).produces()
         ));
 
         MAPPING_ANNOTATIONS.put(PutMapping.class, new MappingInfo(
-                "PUT",
+                HttpMethod.PUT.name(),
                 a -> !((PutMapping) a).value().isEmpty() ? ((PutMapping) a).value() : "",
                 a -> ((PutMapping) a).consumes(),
                 a -> ((PutMapping) a).produces()
         ));
 
         MAPPING_ANNOTATIONS.put(DeleteMapping.class, new MappingInfo(
-                "DELETE",
+                HttpMethod.DELETE.name(),
                 a -> !((DeleteMapping) a).value().isEmpty() ? ((DeleteMapping) a).value() : "",
                 a -> ((DeleteMapping) a).consumes(),
                 a -> ((DeleteMapping) a).produces()
         ));
 
         MAPPING_ANNOTATIONS.put(PatchMapping.class, new MappingInfo(
-                "PATCH",
+                HttpMethod.PATCH.name(),
                 a -> !((PatchMapping) a).value().isEmpty() ? ((PatchMapping) a).value() : "",
                 a -> ((PatchMapping) a).consumes(),
                 a -> ((PatchMapping) a).produces()

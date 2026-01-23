@@ -13,7 +13,7 @@ import java.io.IOException;
 import java.util.List;
 
 @Component
-@Order(100)
+@Order(101)
 public class LumenSecurityFilter implements LumenFilter {
 
     private final List<SecurityFilterChain> filterChains;

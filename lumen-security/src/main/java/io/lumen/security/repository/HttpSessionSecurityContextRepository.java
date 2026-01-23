@@ -6,13 +6,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 public class HttpSessionSecurityContextRepository implements SecurityContextRepository {
-    private static final String SPRING_SECURITY_CONTEXT_KEY = "LUMEN_SECURITY_CONTEXT";
+    private static final String LUMEN_SECURITY_CONTEXT_KEY = "LUMEN_SECURITY_CONTEXT_KEY";
 
     @Override
     public SecurityContext loadContext(HttpServletRequest request) {
         var session = request.getSession(false);
         if (session != null) {
-            SecurityContext context = (SecurityContext) session.getAttribute(SPRING_SECURITY_CONTEXT_KEY);
+            SecurityContext context = (SecurityContext) session.getAttribute(LUMEN_SECURITY_CONTEXT_KEY);
             if (context != null) return context;
         }
         return new DefaultSecurityContext();
@@ -26,13 +26,13 @@ public class HttpSessionSecurityContextRepository implements SecurityContextRepo
 
         if (context.getAuthentication() != null) {
             var session = request.getSession(true);
-            session.setAttribute(SPRING_SECURITY_CONTEXT_KEY, context);
+            session.setAttribute(LUMEN_SECURITY_CONTEXT_KEY, context);
         }
     }
 
     @Override
     public boolean containsContext(HttpServletRequest request) {
         var session = request.getSession(false);
-        return session != null && session.getAttribute(SPRING_SECURITY_CONTEXT_KEY) != null;
+        return session != null && session.getAttribute(LUMEN_SECURITY_CONTEXT_KEY) != null;
     }
 }

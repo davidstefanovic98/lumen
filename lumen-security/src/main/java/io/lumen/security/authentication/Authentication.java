@@ -1,10 +1,12 @@
 package io.lumen.security.authentication;
 
+import io.lumen.security.authority.GrantedAuthority;
+
 import java.util.Collection;
 
 public interface Authentication {
 
-    Collection<String> getAuthorities();
+    Collection<? extends GrantedAuthority> getAuthorities();
 
     Object getCredentials();
 

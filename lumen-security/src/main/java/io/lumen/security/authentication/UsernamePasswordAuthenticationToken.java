@@ -1,30 +1,30 @@
 package io.lumen.security.authentication;
 
+import io.lumen.security.authority.GrantedAuthority;
+import io.lumen.security.authority.SimpleGrantedAuthority;
+
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 public class UsernamePasswordAuthenticationToken implements Authentication {
     private final Object principal;
     private final Object credentials;
-    private final Collection<String> authorities;
+    private final Collection<? extends GrantedAuthority> authorities;
     private boolean authenticated;
 
     public UsernamePasswordAuthenticationToken(Object principal, Object credentials) {
         this.principal = principal;
         this.credentials = credentials;
-        this.authorities = null;
+        this.authorities = new ArrayList<>();
         this.authenticated = false;
     }
 
-    public UsernamePasswordAuthenticationToken(Object principal, Collection<String> authorities) {
+    public UsernamePasswordAuthenticationToken(Object principal, List<SimpleGrantedAuthority> authorities) {
         this.principal = principal;
         this.credentials = null;
         this.authorities = authorities;
         this.authenticated = true;
-    }
-
-    @Override
-    public Collection<String> getAuthorities() {
-        return authorities;
     }
 
     @Override
@@ -50,5 +50,9 @@ public class UsernamePasswordAuthenticationToken implements Authentication {
     @Override
     public String getName() {
         return principal.toString();
+    }
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities;
     }
 }

@@ -4,11 +4,12 @@ import io.lumen.context.annotation.Configuration;
 import io.lumen.context.annotation.Light;
 import io.lumen.data.User;
 import io.lumen.security.authentication.UserDetailsService;
+import io.lumen.security.authority.SimpleGrantedAuthority;
 import io.lumen.security.crypto.BCryptPasswordEncoder;
 import io.lumen.security.crypto.PasswordEncoder;
 import io.lumen.security.manager.AuthenticationManager;
 import io.lumen.security.manager.InMemoryUserDetailsManager;
-import io.lumen.security.repository.HttpSessionSecurityContextRepository;
+import io.lumen.web.http.HttpMethod;
 
 import java.util.List;
 
@@ -17,17 +18,14 @@ public class SecurityConfig {
 
     @Light
     public SecurityFilterChain securityFilterChain(AuthenticationManager authManager) {
-        List<AuthorizationRule> rules = List.of(
-                new AuthorizationRule(new AntPathRequestMatcher("/admin/**"), "ROLE_ADMIN"),
-                new AuthorizationRule(new AntPathRequestMatcher("/api/**"), "ROLE_USER")
-        );
-
-        return new SecurityFilterChain("/**", List.of(
-                new SecurityContextPersistenceFilter(new HttpSessionSecurityContextRepository()),
-                new DefaultLoginPageGeneratingFilter(),
-                new UsernamePasswordAuthenticationFilter(authManager),
-                new AuthorizationFilter(rules)
-        ));
+        return HttpSecurity
+                .builder(authManager)
+                .authorizeRequests(auth -> auth
+                        .antMatchers(HttpMethod.GET.name(), "/admin/**").hasRole("ROLE_ADMIN")
+                        .antMatchers("/api/**").hasRole("ROLE_USER")
+                )
+                .formLogin()
+                .build();
     }
 
     @Light
@@ -39,9 +37,16 @@ public class SecurityConfig {
     public UserDetailsService userDetailsService(PasswordEncoder encoder) {
         InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager();
 
-        manager.createUser(new User("admin", "", encoder.encode("admin123"), List.of("ROLE_ADMIN"), "admin"));
-
-        manager.createUser(new User("user", "", encoder.encode("user123"), List.of("ROLE_USER"), "user"));
+        manager.createUser(
+                new User("admin", "", encoder.encode("admin123"),
+                        List.of(new SimpleGrantedAuthority("ROLE_ADMIN")), "admin"));
+        manager.createUser(
+                new User(
+                        "user",
+                        "",
+                        encoder.encode("user123"),
+                        List.of(new SimpleGrantedAuthority("ROLE_USER")),
+                        "user"));
 
         return manager;
     }

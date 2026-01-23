@@ -1,6 +1,7 @@
 package io.lumen.data;
 
 import io.lumen.security.authentication.UserDetails;
+import io.lumen.security.authority.GrantedAuthority;
 
 import java.util.Collection;
 import java.util.List;
@@ -9,10 +10,10 @@ public class User implements UserDetails {
     private String name;
     private String email;
     private String password;
-    private List<String> roles;
+    private List<GrantedAuthority> roles;
     private String username;
 
-    public User(String name, String email, String password, List<String> roles, String username) {
+    public User(String name, String email, String password, List<GrantedAuthority> roles, String username) {
         this.name = name;
         this.email = email;
         this.password = password;
@@ -39,7 +40,7 @@ public class User implements UserDetails {
     }
 
     @Override
-    public Collection<String> getAuthorities() {
+    public Collection<? extends GrantedAuthority> getAuthorities() {
         return roles;
     }
 

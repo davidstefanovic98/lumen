@@ -1,5 +1,7 @@
 package io.lumen.security.authentication;
 
+import io.lumen.security.authority.GrantedAuthority;
+
 import java.util.Collection;
 
 public interface UserDetails {
@@ -8,7 +10,7 @@ public interface UserDetails {
 
     String getPassword();
 
-    Collection<String> getAuthorities();
+    Collection<? extends GrantedAuthority> getAuthorities();
 
     boolean isEnabled();
 

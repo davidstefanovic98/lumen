@@ -27,7 +27,6 @@ public class DaoAuthenticationProvider implements AuthenticationProvider {
 
         UserDetails user = userDetailsService.loadUserByUsername(username);
 
-        // Basic check until PasswordEncoder is implemented
         if (passwordEncoder.matches(password, user.getPassword())) {
             return new UsernamePasswordAuthenticationToken(
                     user,

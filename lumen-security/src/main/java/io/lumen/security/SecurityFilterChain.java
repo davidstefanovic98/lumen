@@ -1,6 +1,5 @@
 package io.lumen.security;
 
-import io.lumen.context.annotation.Component;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;

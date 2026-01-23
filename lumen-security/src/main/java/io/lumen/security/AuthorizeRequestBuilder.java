@@ -1,0 +1,70 @@
+package io.lumen.security;
+
+import io.lumen.web.http.HttpMethod;
+
+import java.util.List;
+
+public class AuthorizeRequestBuilder {
+    private final List<AuthorizationRule> rules;
+
+    public AuthorizeRequestBuilder(List<AuthorizationRule> rules) {
+        this.rules = rules;
+    }
+
+    public AntMatcherConfig antMatchers(String... patterns) {
+        return new AntMatcherConfig(this, patterns);
+    }
+
+    public RegexMatcherConfig regexMatchers(String... regexes) {
+        return new RegexMatcherConfig(this, regexes);
+    }
+
+    public static class AntMatcherConfig {
+        private final AuthorizeRequestBuilder builder;
+        private final String[] patterns;
+
+        public AntMatcherConfig(AuthorizeRequestBuilder builder, String[] patterns) {
+            this.builder = builder;
+            this.patterns = patterns;
+        }
+
+        public AuthorizeRequestBuilder hasRole(String role) {
+            for (String pattern : patterns) {
+                builder.rules.add(new AuthorizationRule(new AntPathRequestMatcher(pattern), role));
+            }
+            return builder;
+        }
+
+        public AuthorizeRequestBuilder hasRole(HttpMethod method, String role) {
+            for (String pattern : patterns) {
+                builder.rules.add(new AuthorizationRule(
+                        new AntPathRequestMatcher(pattern, method), role));
+            }
+            return builder;
+        }
+
+        public AuthorizeRequestBuilder permitAll() {
+            for (String pattern : patterns) {
+                builder.rules.add(new AuthorizationRule(new AntPathRequestMatcher(pattern), "PERMIT_ALL"));
+            }
+            return builder;
+        }
+    }
+
+    public static class RegexMatcherConfig {
+        private final AuthorizeRequestBuilder builder;
+        private final String[] regexes;
+
+        public RegexMatcherConfig(AuthorizeRequestBuilder builder, String[] regexes) {
+            this.builder = builder;
+            this.regexes = regexes;
+        }
+
+        public AuthorizeRequestBuilder hasRole(String role) {
+            for (String regex : regexes) {
+                builder.rules.add(new AuthorizationRule(new RegexRequestMatcher(regex), role));
+            }
+            return builder;
+        }
+    }
+}
