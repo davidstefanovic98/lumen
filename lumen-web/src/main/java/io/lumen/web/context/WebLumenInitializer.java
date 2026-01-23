@@ -2,6 +2,7 @@ package io.lumen.web.context;
 
 import io.lumen.context.annotation.Component;
 import io.lumen.core.LumenInitializer;
+import io.lumen.core.annotation.Order;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
@@ -12,6 +13,7 @@ import io.lumen.web.http.HttpMessageConverterRegistry;
 import jakarta.servlet.ServletContext;
 
 @Component
+@Order(1)
 public class WebLumenInitializer implements LumenInitializer {
     private final CompositeMethodArgumentResolver argumentResolver;
     private final HttpMessageConverterRegistry converterRegistry;

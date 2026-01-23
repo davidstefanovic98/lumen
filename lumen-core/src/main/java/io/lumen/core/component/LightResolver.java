@@ -66,7 +66,7 @@ public class LightResolver {
         } else {
             LightInstance depLight = findMatch(dep, allLights);
 
-            if (depLight == null && dep.isRequired()) {
+            if (depLight == null && dep.isRequired() && !dep.isLazy()) {
                 throw new MissingDependencyException(buildMissingMessage(light, dep));
             }
 

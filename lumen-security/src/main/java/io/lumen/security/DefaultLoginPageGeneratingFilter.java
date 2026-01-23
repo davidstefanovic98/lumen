@@ -14,13 +14,10 @@ import java.io.IOException;
 @Order(2)
 public class DefaultLoginPageGeneratingFilter extends OncePerRequestFilter {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultLoginPageGeneratingFilter.class);
-
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String path = request.getPathInfo();
-        logger.info("DefaultLoginPageGeneratingFilter processing request: {} {}", request.getMethod(), path);
         if (HttpMethod.GET.matches(request.getMethod()) && "/login".equals(path)) {
             boolean hasError = request.getParameter("error") != null;
             boolean isLogout = request.getParameter("logout") != null;

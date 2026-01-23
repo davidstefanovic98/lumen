@@ -16,7 +16,20 @@ public class ModelAndViewArgumentResolver implements MethodArgumentResolver{
 
     @Override
     public Object resolve(Parameter parameter, HttpServletRequest request, HttpServletResponse response, Map<String, String> pathVariables) {
-        return new ModelAndView();
+        ModelAndView mav = new ModelAndView();
+
+        /*
+         * Retrieve flash attributes from the request and add them to the ModelAndView,
+         * in order to make ModelAndView carry over with redirects
+         */
+        @SuppressWarnings("unchecked")
+        Map<String, Object> flashAttributes = (Map<String, Object>) request.getAttribute("LUMEN_FLASH_ATTRIBUTES");
+
+        if (flashAttributes != null) {
+            flashAttributes.forEach(mav::addObject);
+        }
+
+        return mav;
     }
 }
 

@@ -1,7 +1,7 @@
 package io.lumen.security;
 
 import io.lumen.context.annotation.Configuration;
-import io.lumen.context.annotation.Light;
+import io.lumen.core.annotation.Light;
 import io.lumen.data.User;
 import io.lumen.security.authentication.UserDetailsService;
 import io.lumen.security.authority.SimpleGrantedAuthority;
@@ -38,13 +38,13 @@ public class SecurityConfig {
         InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager();
 
         manager.createUser(
-                new User("admin", "", encoder.encode("admin123"),
+                new User("admin", "", encoder.encode("Test123!"),
                         List.of(new SimpleGrantedAuthority("ROLE_ADMIN")), "admin"));
         manager.createUser(
                 new User(
                         "user",
                         "",
-                        encoder.encode("user123"),
+                        encoder.encode("Test123!"),
                         List.of(new SimpleGrantedAuthority("ROLE_USER")),
                         "user"));
 

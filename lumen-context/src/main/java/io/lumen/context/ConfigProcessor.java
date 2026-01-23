@@ -3,7 +3,7 @@ package io.lumen.context;
 import io.lumen.context.annotation.Component;
 import io.lumen.context.annotation.ComponentScan;
 import io.lumen.context.annotation.Configuration;
-import io.lumen.context.annotation.Light;
+import io.lumen.core.annotation.Light;
 import io.lumen.core.annotation.Value;
 import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightDefinition;
@@ -12,6 +12,7 @@ import io.lumen.core.component.processor.LightProcessor;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.core.logging.LoggingConfigurator;
+import io.lumen.core.proxy.ProxyFactory;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -79,7 +80,7 @@ class ConfigProcessor {
 
     private Object instantiateConfigClass(Class<?> configClass) {
         if (configClass.isAnnotationPresent(Configuration.class)) {
-            return ConfigurationProxyFactory.createProxy(configClass, container);
+            return ProxyFactory.createConfigurationProxy(configClass, container);
         }
 
         try {

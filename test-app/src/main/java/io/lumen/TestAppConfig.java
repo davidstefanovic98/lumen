@@ -2,7 +2,7 @@ package io.lumen;
 
 import io.lumen.context.annotation.ComponentScan;
 import io.lumen.context.annotation.Configuration;
-import io.lumen.context.annotation.Light;
+import io.lumen.core.annotation.Light;
 import io.lumen.core.annotation.PostConstruct;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;

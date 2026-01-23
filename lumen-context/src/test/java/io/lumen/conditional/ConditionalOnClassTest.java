@@ -10,19 +10,16 @@ class ConditionalOnClassTest {
 
     public static class TestConfig {
 
-        @Light
         @ConditionalOnClass(ProfileClassService.class)
         ExistingClassService existingService() {
             return new ExistingClassService();
         }
 
-        @Light
         @ConditionalOnClass(name = "com.fake.NonExistentClass")
         MissingClassService missingService() {
             return new MissingClassService();
         }
 
-        @Light
         @Profile("profile")
         ProfileClassService profileService() {
             return new ProfileClassService();

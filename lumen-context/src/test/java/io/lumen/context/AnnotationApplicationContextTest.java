@@ -12,14 +12,11 @@ class AnnotationApplicationContextTest {
     @ComponentScan(basePackages = "io.lumen.context")
     public static class TestConfig {
 
-        @Light
         @Profile("prod")
         public ProdService prodService() { return new ProdService(); }
 
-        @Light
         public ConditionalService conditionalService() { return new ConditionalService(); }
 
-        @Light
         @Scope(ScopeType.PROTOTYPE)
         public MyService prototypeService(@Value("${my.property}") String property) {
             return new MyService(property);

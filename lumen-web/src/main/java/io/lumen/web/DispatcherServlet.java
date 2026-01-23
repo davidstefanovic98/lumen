@@ -7,7 +7,9 @@ import io.lumen.web.exception.HttpMediaTypeNotSupportedException;
 import io.lumen.web.exception.NotFoundException;
 import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
+import io.lumen.web.flash.FlashMapManager;
 import io.lumen.web.http.HttpMessageConverterRegistry;
+import io.lumen.web.http.HttpMethod;
 import io.lumen.web.resource.ResourceProvider;
 import io.lumen.web.resource.StaticResourceResultHandler;
 import jakarta.servlet.http.HttpServlet;
@@ -16,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
 
 public class DispatcherServlet extends HttpServlet {
 
@@ -43,52 +46,72 @@ public class DispatcherServlet extends HttpServlet {
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String path = req.getPathInfo();
-        if (path == null || path.equals("/")) {
-            path = "/index.html";
-        } else if (path.endsWith("/")) {
-            path = path + "index.html";
+        if (path == null)
+            path = "/";
+
+        if (path.length() > 1 && path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
         }
 
         String method = req.getMethod();
 
         try {
             RouteMatch match = registry.findMatch(path, method);
-            if (match == null) {
-                ResourceProvider.StaticResource resource = resourceProvider.getResource(path);
-                if (resource != null) {
-                    resourceHandler.handle(resource, resp);
-                    return;
-                }
-                throw new NotFoundException("No route or static resource found for " + method + " " + unquote(path));
+
+            if (match != null) {
+                handleControllerRequest(match, req, resp);
+                return;
             }
 
-            Route route = match.route();
+            ResourceProvider.StaticResource resource = resourceProvider.getResource(path);
 
-            if (requiresBody(method) && route.getConsumes() != null && route.getConsumes().length > 0) {
-                String contentType = req.getContentType();
-                if (contentType == null || !matchesMediaType(contentType, route.getConsumes())) {
-                    throw new HttpMediaTypeNotSupportedException("Expected: " + String.join(", ", route.getConsumes()));
-                }
+            if (resource == null && (path.equals("/") || path.isEmpty())) {
+                resource = resourceProvider.getWelcomePage();
             }
 
-            if (route.getProduces() != null && route.getProduces().length > 0) {
-                String accept = req.getHeader("Accept");
-                if (accept != null && !accept.equals("*/*") && !matchesMediaType(accept, route.getProduces())) {
-                    throw new HttpMediaTypeNotAcceptableException("Supported: " + String.join(", ", route.getProduces()));
-                }
+            if (resource != null) {
+                resourceHandler.handle(resource, req, resp);
+                return;
             }
 
-            invoker.invokeAndWrite(match, req, resp);
+            throw new NotFoundException("No route or static resource found for " + method + " " + unquote(path));
 
         } catch (Exception e) {
             if (!exceptionResolver.resolve(req, resp, e)) {
-                resp.sendError(500, "Unresolved error: " + e.getMessage());
+                logger.error("Unresolved error in DispatcherServlet", e);
+                resp.sendError(500, "Internal Server Error");
             }
         }
     }
 
+    private void handleControllerRequest(RouteMatch match, HttpServletRequest req, HttpServletResponse resp) throws Exception {
+        Route route = match.route();
+        String method = req.getMethod();
+
+        if (requiresBody(method) && route.getConsumes() != null && route.getConsumes().length > 0) {
+            String contentType = req.getContentType();
+            if (contentType == null || !matchesMediaType(contentType, route.getConsumes())) {
+                throw new HttpMediaTypeNotSupportedException("Expected: " + String.join(", ", route.getConsumes()));
+            }
+        }
+
+        if (route.getProduces() != null && route.getProduces().length > 0) {
+            String accept = req.getHeader("Accept");
+            if (accept != null && !accept.equals("*/*") && !matchesMediaType(accept, route.getProduces())) {
+                throw new HttpMediaTypeNotAcceptableException("Supported: " + String.join(", ", route.getProduces()));
+            }
+        }
+
+        Map<String, Object> flashAttributes = FlashMapManager.consume(req);
+        if (flashAttributes != null) {
+            req.setAttribute("LUMEN_FLASH_ATTRIBUTES", flashAttributes);
+        }
+
+        invoker.invokeAndWrite(match, req, resp);
+    }
+
     private boolean requiresBody(String method) {
-        return "POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method);
+        return HttpMethod.POST.matches(method) || HttpMethod.PUT.matches(method) || HttpMethod.PATCH.matches(method);
     }
 
     private boolean matchesMediaType(String headerValue, String[] supportedTypes) {

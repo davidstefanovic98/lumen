@@ -1,7 +1,6 @@
 package io.lumen.conditional;
 
 import io.lumen.context.annotation.ConditionalOnLight;
-import io.lumen.context.annotation.Light;
 import io.lumen.context.annotation.Profile;
 import io.lumen.context.AnnotationApplicationContext;
 import io.lumen.core.exception.NoLightFoundException;
@@ -13,13 +12,11 @@ class ConditionalOnLightTest {
 
     public static class TestConfig {
 
-        @Light
         @ConditionalOnLight(ProfileClassService.class)
         ExistingClassService existingService() {
             return new ExistingClassService();
         }
 
-        @Light
         @Profile("dev")
         ProfileClassService profileService() {
             return new ProfileClassService();

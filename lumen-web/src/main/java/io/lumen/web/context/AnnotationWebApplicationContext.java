@@ -1,6 +1,8 @@
 package io.lumen.web.context;
 
 import io.lumen.context.AnnotationApplicationContext;
+import io.lumen.core.LumenInitializer;
+import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightInstance;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
@@ -78,6 +80,13 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         logger.info("Initializing Web Context via SCI...");
         context.getLightContainer().registerExternalInstance(ServletContext.class, servletContext);
         context.initialize();
+        if (context.getLightContainer() != null) {
+            List<LumenInitializer> initializers = context.getLightContainer().internals().getLightsByType(LumenInitializer.class);
+
+            for (LumenInitializer initializer : initializers) {
+                initializer.onStartup();
+            }
+        }
         this.registerFilters(servletContext);
         this.registerDispatcherServlet(servletContext);
         this.refreshWebComponents();

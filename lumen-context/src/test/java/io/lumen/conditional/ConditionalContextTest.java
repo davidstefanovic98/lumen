@@ -12,18 +12,15 @@ class ConditionalContextTest {
 
     public static class TestConfig {
 
-        @Light
         DevService devService() {
             return new DevService();
         }
 
-        @Light
         @ConditionalOnProperty(name = "feature.enabled", havingValue = "true")
         FeatureService featureService() {
             return new FeatureService();
         }
 
-        @Light
         @Scope(ScopeType.PROTOTYPE)
         MyService prototypeService(@Value("${my.property}") String property) {
             return new MyService(property);

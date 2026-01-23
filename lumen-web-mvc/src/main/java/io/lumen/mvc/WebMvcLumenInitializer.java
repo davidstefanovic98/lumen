@@ -3,6 +3,7 @@ package io.lumen.mvc;
 import io.lumen.context.annotation.Component;
 import io.lumen.context.annotation.Lazy;
 import io.lumen.core.LumenInitializer;
+import io.lumen.core.annotation.Order;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.mvc.argument.ModelAndViewArgumentResolver;
@@ -13,6 +14,7 @@ import io.lumen.web.view.ViewResolver;
 import jakarta.servlet.ServletContext;
 
 @Component
+@Order(2)
 public class WebMvcLumenInitializer implements LumenInitializer {
     private static final Logger logger = LoggerFactory.getLogger(WebMvcLumenInitializer.class);
     private final ServletContext servletContext;

@@ -30,7 +30,7 @@ public class RouteRegistry {
             }
             if (newMatcher.couldShadowLiteral(existing.matcher)) {
                 logger.warn(String.format(
-                        "WARNING: Route [%s %s] in controller %s#%s may shadow existing route [%s %s] in controller %s#%s%n",
+                        "Route [%s %s] in controller %s#%s may shadow existing route [%s %s] in controller %s#%s%n",
                         route.getHttpMethod(),
                         route.getPathPattern(),
                         route.getController().getClass().getSimpleName(),

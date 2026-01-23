@@ -22,5 +22,6 @@
         <module>lumen-web-thymeleaf</module>
         <module>lumen-web-mvc</module>
         <module>lumen-security</module>
+        <module>lumen-aop</module>
     </modules>
 </project>

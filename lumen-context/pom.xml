@@ -30,11 +30,5 @@
             <version>5.10.0</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>net.bytebuddy</groupId>
-            <artifactId>byte-buddy</artifactId>
-            <version>1.14.11</version>
-        </dependency>
     </dependencies>
-
 </project>
