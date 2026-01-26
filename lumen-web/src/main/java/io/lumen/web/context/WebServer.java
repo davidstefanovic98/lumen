@@ -1,8 +1,6 @@
 package io.lumen.web.context;
 
 import jakarta.servlet.ServletContainerInitializer;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletContextListener;
 import jakarta.servlet.http.HttpServlet;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
@@ -16,11 +14,14 @@ class WebServer {
 
     public WebServer(int port) {
         this.tomcat = new Tomcat();
+
+        File baseDir = new File(System.getProperty("java.io.tmpdir"), "lumen-tomcat-" + port);
+        tomcat.setBaseDir(baseDir.getAbsolutePath());
+
         tomcat.setPort(port);
         tomcat.getConnector();
 
-        File docBase = new File(System.getProperty("java.io.tmpdir"));
-        this.rootContext = tomcat.addContext("", docBase.getAbsolutePath());
+        this.rootContext = tomcat.addContext("", baseDir.getAbsolutePath());
     }
 
     public void addServlet(String name, HttpServlet servlet, String mapping) {

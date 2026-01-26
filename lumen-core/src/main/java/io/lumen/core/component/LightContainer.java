@@ -59,8 +59,8 @@ public class LightContainer {
         registerDefinition(def);
     }
 
-    public LightDefinition registerFactory(String name, Method method, LightFactory factory, Class<?> type) {
-        LightDefinition def = LightDefinition.fromFactory(name, method, factory, type);
+    public LightDefinition registerFactory(String name, Method method, LightFactory factory, Class<?> type, boolean isPrimary) {
+        LightDefinition def = LightDefinition.fromFactory(name, method, factory, type, isPrimary);
         registerDefinition(def);
         return def;
     }

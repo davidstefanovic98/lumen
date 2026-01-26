@@ -13,7 +13,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
-
 @Order(3)
 public class UsernamePasswordAuthenticationFilter extends OncePerRequestFilter {
 

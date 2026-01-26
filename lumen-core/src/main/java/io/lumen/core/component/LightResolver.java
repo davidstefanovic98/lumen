@@ -1,5 +1,6 @@
 package io.lumen.core.component;
 
+import io.lumen.core.exception.AmbiguousLightException;
 import io.lumen.core.exception.CircularDependencyException;
 import io.lumen.core.exception.MissingDependencyException;
 
@@ -95,12 +96,28 @@ public class LightResolver {
             }
         }
 
-        for (LightInstance light : lights.values()) {
-            if (dep.matches(light.getMetadata())) {
-                return light;
-            }
+        List<LightInstance> candidates = findAllMatches(dep, lights);
+
+        if (candidates.isEmpty()) {
+            return null;
         }
-        return null;
+
+        if (candidates.size() == 1) {
+            return candidates.getFirst();
+        }
+
+        List<LightInstance> primaryCandidates = candidates.stream()
+                .filter(c -> c.getMetadata().getDefinition().isPrimary())
+                .toList();
+
+        if (primaryCandidates.size() == 1) {
+            return primaryCandidates.getFirst();
+        }
+        throw new AmbiguousLightException(
+                String.format("Multiple matches found for %s, but no unique @Primary light exists: %s",
+                        dep.getType().getSimpleName(),
+                        candidates.stream().map(LightInstance::getName).toList())
+        );
     }
 
     protected List<LightInstance> findAllMatches(Dependency dep, Map<String, LightInstance> lights) {

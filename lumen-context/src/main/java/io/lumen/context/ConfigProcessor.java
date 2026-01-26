@@ -4,6 +4,7 @@ import io.lumen.context.annotation.Component;
 import io.lumen.context.annotation.ComponentScan;
 import io.lumen.context.annotation.Configuration;
 import io.lumen.core.annotation.Light;
+import io.lumen.core.annotation.Primary;
 import io.lumen.core.annotation.Value;
 import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightDefinition;
@@ -92,6 +93,7 @@ class ConfigProcessor {
 
     private void processLightMethod(Method method, Object configInstance) {
         method.setAccessible(true);
+        boolean isPrimary = method.isAnnotationPresent(Primary.class);
         LightFactory factory = (ld) -> {
             try {
                 Object[] args = resolveMethodDependencies(method, container);
@@ -105,16 +107,20 @@ class ConfigProcessor {
                 method.getName(),
                 method,
                 factory,
-                method.getReturnType()
+                method.getReturnType(),
+                isPrimary
         );
-
-        container.registerFactory(def.getName(), method, factory, method.getReturnType());
+        container.registerFactory(def.getName(), method, factory, method.getReturnType(), isPrimary);
         def.setExecutable(method);
     }
 
     private void scanPackage(String... basePackage) {
         PackageScanner.scan(basePackage).forEach(clazz -> {
-            if (clazz.isAnnotation()) return;
+            if (clazz.isAnnotation())
+                return;
+
+            if (clazz.isInterface())
+                return;
 
             if (clazz.isAnnotationPresent(Configuration.class)) {
                 process(clazz);

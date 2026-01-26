@@ -15,7 +15,7 @@ import java.util.List;
 /**
  * Invokes a route method with resolved parameters.
  */
-@Component
+
 public class RouteInvoker {
     private final CompositeMethodArgumentResolver argumentResolver;
     private final List<RouteResultHandler> resultHandlers = new ArrayList<>();

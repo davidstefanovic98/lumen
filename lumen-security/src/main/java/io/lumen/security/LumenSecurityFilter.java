@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.List;
 
-@Component
 @Order(101)
 public class LumenSecurityFilter implements LumenFilter {
 

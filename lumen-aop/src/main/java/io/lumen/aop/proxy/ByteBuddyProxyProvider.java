@@ -41,6 +41,11 @@ public class ByteBuddyProxyProvider implements ProxyProvider {
         }
     }
 
+    @Override
+    public <T> T createInterfaceProxy(Class<T> type, List<MethodInterceptor> interceptors) {
+        return createProxy(type, new ByteBuddyInterfaceInterceptor(interceptors));
+    }
+
     private <T> T createProxy(Class<T> type, Object interceptor) {
         try {
             return new ByteBuddy()

@@ -1,14 +1,18 @@
 package io.lumen.context;
 
 import io.lumen.context.annotation.*;
+import io.lumen.core.annotation.Primary;
+import io.lumen.core.annotation.Qualifier;
 import io.lumen.core.annotation.Value;
 import io.lumen.core.component.Dependency;
 import io.lumen.core.component.LightAnalyzer;
 import io.lumen.core.component.LightDefinition;
 import io.lumen.core.component.LightMetadata;
 import io.lumen.core.conditional.Condition;
+import io.lumen.core.util.ParameterNameDiscoverer;
 import io.lumen.core.util.ReflectionUtil;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Parameter;
@@ -107,6 +111,9 @@ class AnnotationLightAnalyzer implements LightAnalyzer {
             definition.setProfile(type.getAnnotation(Profile.class).value());
         }
 
+        boolean primary = type.isAnnotationPresent(Primary.class);
+        definition.setPrimary(primary);
+
         Constructor<?> constructor = ReflectionUtil.findConstructor(type);
         List<Dependency> deps = extractDependencies(constructor.getParameters());
 
@@ -154,6 +161,26 @@ class AnnotationLightAnalyzer implements LightAnalyzer {
             return new Dependency(type, null, true, isCollection, null, Dependency.DependencyType.VALUE, key, isLazy);
         }
 
-        return new Dependency(type, parameter.getName(), true, isCollection, null, Dependency.DependencyType.LIGHT, null, isLazy);
+        String dependencyName = ParameterNameDiscoverer.getParameterName(parameter);
+
+        if (parameter.isAnnotationPresent(Qualifier.class)) {
+            dependencyName = parameter.getAnnotation(Qualifier.class).value();
+        }
+
+        Class<?>[] qualifiers = Arrays.stream(parameter.getAnnotations())
+                .map(Annotation::annotationType)
+                .filter(ann -> ann != Qualifier.class && ann != Lazy.class)
+                .toArray(Class<?>[]::new);
+
+        return new Dependency(
+                type,
+                dependencyName,
+                true,
+                isCollection,
+                qualifiers,
+                Dependency.DependencyType.LIGHT,
+                null,
+                isLazy
+        );
     }
 }

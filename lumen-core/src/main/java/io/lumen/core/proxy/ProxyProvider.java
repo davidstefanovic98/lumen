@@ -10,4 +10,5 @@ public interface ProxyProvider {
     <T> T createLazyProxy(LightContainer container, LightInstance light, Class<T> type);
     <T> T createAopProxy(Class<T> type, List<MethodInterceptor> interceptors);
     <T> T createConfigurationProxy(Class<T> configClass, LightContainer container);
+    <T> T createInterfaceProxy(Class<T> type, List<MethodInterceptor> interceptors);
 }

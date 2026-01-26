@@ -19,6 +19,7 @@ public class LightDefinition {
     private Executable executable;
     private Supplier<Boolean> condition;
     private DefinitionOrigin origin;
+    private boolean primary;
 
     private LightDefinition(String name, Class<?> type, LightSource source) {
         this.name = name;
@@ -72,9 +73,12 @@ public class LightDefinition {
             String name,
             Method method,
             LightFactory factory,
-            Class<?> type
+            Class<?> type,
+            boolean isPrimary
     ) {
-        return new LightDefinition(name, method, LightSource.FACTORY, factory, type);
+        LightDefinition def = new LightDefinition(name, method, LightSource.FACTORY, factory, type);
+        def.setPrimary(isPrimary);
+        return def;
     }
 
     public enum LightSource {
@@ -153,6 +157,14 @@ public class LightDefinition {
 
     public void setOrigin(DefinitionOrigin origin) {
         this.origin = origin;
+    }
+
+    public boolean isPrimary() {
+        return primary;
+    }
+
+    public void setPrimary(boolean primary) {
+        this.primary = primary;
     }
 
     @Override

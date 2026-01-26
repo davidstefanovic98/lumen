@@ -1,6 +1,5 @@
 package io.lumen.web.context;
 
-import io.lumen.context.annotation.Controller;
 import io.lumen.core.component.LightInstance;
 import io.lumen.web.Route;
 import io.lumen.web.RouteRegistry;
@@ -66,7 +65,7 @@ class ControllerScanner {
         }
     }
 
-    private static void scanController(Object instance, Class<?> type, RouteRegistry registry) {
+    static void scanController(Object instance, Class<?> type, RouteRegistry registry) {
         String basePath = extractBasePath(type);
         boolean classIsRest = hasAnnotation(type, ResponseBody.class);
 

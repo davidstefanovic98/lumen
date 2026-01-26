@@ -1,6 +1,5 @@
 package io.lumen.web.http;
 
-import io.lumen.context.annotation.Component;
 import io.lumen.web.exception.HttpMessageConvertException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -9,7 +8,7 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.List;
 
-@Component
+
 public class HttpMessageConverterRegistry {
 
     private final List<HttpMessageConverter> converters;

@@ -1,6 +1,5 @@
 package io.lumen.security.manager;
 
-import io.lumen.context.annotation.Component;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.security.authentication.Authentication;
@@ -8,7 +7,6 @@ import io.lumen.security.exception.AuthenticationException;
 
 import java.util.List;
 
-@Component
 public class ProviderManager implements AuthenticationManager {
     private static final Logger logger = LoggerFactory.getLogger(ProviderManager.class);
     private final List<AuthenticationProvider> providers;

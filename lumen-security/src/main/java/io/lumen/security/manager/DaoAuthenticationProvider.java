@@ -9,7 +9,6 @@ import io.lumen.security.authentication.UsernamePasswordAuthenticationToken;
 import io.lumen.security.crypto.PasswordEncoder;
 import io.lumen.security.exception.BadCredentialsException;
 
-@Component
 public class DaoAuthenticationProvider implements AuthenticationProvider {
 
     private final UserDetailsService userDetailsService;

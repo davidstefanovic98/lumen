@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLConnection;
 
-@Component
 public class StaticResourceResultHandler {
 
     public void handle(ResourceProvider.StaticResource resource, HttpServletRequest req, HttpServletResponse resp) throws Exception {

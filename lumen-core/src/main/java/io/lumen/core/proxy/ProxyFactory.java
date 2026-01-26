@@ -16,7 +16,11 @@ public class ProxyFactory {
     private static final ProxyProvider provider = loadProvider();
 
     private static ProxyProvider loadProvider() {
-        return ServiceLoader.load(ProxyProvider.class).findFirst().orElse(null);
+        try {
+            return ServiceLoader.load(ProxyProvider.class).findFirst().orElse(null);
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     private static ProxyProvider getRequiredProvider() {
@@ -36,6 +40,10 @@ public class ProxyFactory {
 
     public static <T> T createAopProxy(Class<T> type, List<MethodInterceptor> interceptors) {
         return getRequiredProvider().createAopProxy(type, interceptors);
+    }
+
+    public static <T> T createInterfaceProxy(Class<T> type, List<MethodInterceptor> interceptors) {
+        return getRequiredProvider().createInterfaceProxy(type, interceptors);
     }
 
     public static List<?> createLazyCollection(LightContainer container, List<LightInstance> elements) {

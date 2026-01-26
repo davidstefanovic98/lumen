@@ -25,6 +25,7 @@ public class AnnotationApplicationContext implements ApplicationContext {
                 lightCreator);
         this.container.setApplicationContext(this);
         this.config = new Config();
+        ModuleInitializer.initializeModules(configClass, container);
         new ConfigProcessor(container, configClass);
         container.initialize();
         registerDefaultProcessors();
@@ -42,6 +43,7 @@ public class AnnotationApplicationContext implements ApplicationContext {
 
     public void scan(Class<?> configClass) {
         new ConfigProcessor(container, configClass);
+        ModuleInitializer.initializeModules(configClass, container);
     }
 
     private DefaultLightCreator getLightCreator() {

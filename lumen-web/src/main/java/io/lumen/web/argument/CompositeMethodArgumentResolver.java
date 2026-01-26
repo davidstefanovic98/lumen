@@ -1,8 +1,6 @@
 package io.lumen.web.argument;
 
-import io.lumen.context.annotation.Component;
 import io.lumen.web.exception.MethodArgumentResolveException;
-import io.lumen.web.http.HttpMessageConverterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -11,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-@Component
+
 public class CompositeMethodArgumentResolver {
 
     private final List<MethodArgumentResolver> resolvers = new CopyOnWriteArrayList<>();

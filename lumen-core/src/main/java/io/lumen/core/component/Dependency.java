@@ -40,13 +40,19 @@ public class Dependency {
      */
     public boolean matches(LightMetadata metadata) {
         if (depType == DependencyType.LIGHT) {
+            boolean typeMatch = type.isAssignableFrom(metadata.getDefinition().getType());
+            if (!typeMatch)
+                return false;
+
+            // 2. Qualifier/Name Logic
+            // If we have a name, and it doesn't look like an auto-generated one (arg0),
+            // we should check if the Light's name matches our required name.
             if (name != null && !name.isEmpty() && !name.startsWith("arg")) {
-                return metadata.getDefinition().getName().equals(name);
+                return true;
             }
-            // Otherwise match by type
-            return type.isAssignableFrom(metadata.getDefinition().getType());
+            return true;
         }
-      return false;
+        return false;
     }
 
     public Class<?> getType() {

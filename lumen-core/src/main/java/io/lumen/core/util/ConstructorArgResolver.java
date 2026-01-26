@@ -14,8 +14,11 @@ import java.util.Map;
 public final class ConstructorArgResolver {
 
     private ConstructorArgResolver() {}
+
     /**
      * Collect constructor arguments from resolved dependencies.
+     * Automatically creates proxies for dependencies that are not yet instantiated
+     * to resolve circular and ordering issues.
      */
     public static Object[] resolve(LightInstance light, LightContainer container, DependencyProvider provider) {
         List<Dependency> constructorDeps = light.getMetadata().getConstructorDeps();
@@ -25,33 +28,46 @@ public final class ConstructorArgResolver {
 
         for (Dependency dep : constructorDeps) {
             Object arg = null;
+
             if (dep.isCollection()) {
                 List<LightInstance> elements = new ArrayList<>();
                 for (Map.Entry<Dependency, LightInstance> entry : resolvedMap.entrySet()) {
-                    if (entry.getKey().equals(dep)) elements.add(entry.getValue());
+                    if (entry.getKey().equals(dep)) {
+                        elements.add(entry.getValue());
+                    }
                 }
                 arg = ProxyFactory.createLazyCollection(container, elements);
-            } else if (dep.getValueKey() != null && provider.canProvide(dep)) {
-                // Non-light dependency, resolve via provider
-                arg = provider.provide(dep);
-            } else {
-                LightInstance depLight = resolvedMap.get(dep);
-                if (dep.isLazy()) {
-                    arg = ProxyFactory.createLazy(container, depLight, dep.getType());
-                } else if (depLight != null) {
-                    arg = depLight.getMetadata().getDefinition().isLazy()
-                            ? ProxyFactory.createLazy(container, depLight, dep.getType())
-                            : depLight.getInstance();
+            }
 
-                    // Safety check: if it's not lazy but instance is null,
-                    // it means we have an ordering issue in the container.
+            else if (dep.getValueKey() != null && provider.canProvide(dep)) {
+                arg = provider.provide(dep);
+            }
+
+            else {
+                LightInstance depLight = resolvedMap.get(dep);
+
+                if (depLight != null) {
+                    // A) If the dependency is explicitly @Lazy -> Proxy it.
+                    // B) If the target Light is marked @Lazy -> Proxy it.
+                    // C) If the instance is NULL (not yet built) -> Proxy it (Auto-Lazy).
+                    Object instance = depLight.getInstance();
+                    boolean shouldProxy = dep.isLazy() ||
+                            depLight.getMetadata().getDefinition().isLazy() ||
+                            instance == null;
+
+                    if (shouldProxy) {
+                        arg = ProxyFactory.createLazy(container, depLight, dep.getType());
+                    } else {
+                        arg = instance;
+                    }
+
                     if (arg == null && dep.isRequired()) {
                         throw new LightInstantiationException(
-                                "Dependency " + dep.getType().getSimpleName() + " exists but is not yet instantiated. " +
-                                        "Try marking it with @Lazy in the constructor of " + light.getName());
+                                "Dependency " + dep.getType().getSimpleName() +
+                                        " for " + light.getName() + " could not be instantiated or proxied.");
                     }
                 } else if (dep.isRequired()) {
-                    throw new LightInstantiationException("Required dependency not resolved: " + dep);
+                    throw new LightInstantiationException("Required dependency not found in resolved map: " + dep);
                 }
             }
 

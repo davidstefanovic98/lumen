@@ -6,15 +6,15 @@ import io.lumen.security.context.SecurityContextHolder;
 import io.lumen.security.exception.AccessDeniedException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.List;
 
 @Order(100)
-public class AuthorizationFilter extends OncePerRequestFilter {
-
+public class AuthorizationFilter implements SecuritySubFilter {
     private final List<AuthorizationRule> rules;
 
     public AuthorizationFilter(List<AuthorizationRule> rules) {
@@ -22,36 +22,33 @@ public class AuthorizationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
-
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         for (AuthorizationRule rule : rules) {
-            if (rule.matcher().matches(request)) {
-                if ("PERMIT_ALL".equals(rule.requiredRole())) {
+            if (rule.matcher().matches((HttpServletRequest) request)) {
+                String role = rule.requiredRole();
+
+                if ("PERMIT_ALL".equals(role)) {
                     chain.doFilter(request, response);
                     return;
                 }
-                if (!isAuthorized(authentication, rule.requiredRole())) {
-                    throw new AccessDeniedException("Insufficient permissions or not logged in");
+
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth == null || !auth.isAuthenticated()) {
+                    throw new AccessDeniedException("Not logged in");
                 }
+
+                if (!"IS_AUTHENTICATED".equals(role)) {
+                    boolean hasRole = auth.getAuthorities().stream()
+                            .anyMatch(a -> a.getAuthority().equals(role));
+                    if (!hasRole) {
+                        throw new AccessDeniedException("Insufficient roles");
+                    }
+                }
+
                 chain.doFilter(request, response);
                 return;
             }
         }
-        chain.doFilter(request, response);
-    }
-
-    private boolean isAuthorized(Authentication auth, String requiredAuthority) {
-        if (auth == null || !auth.isAuthenticated()) return false;
-
-        if ("IS_AUTHENTICATED".equals(requiredAuthority) || "AUTHENTICATED".equals(requiredAuthority)) {
-            return true;
-        }
-
-        return auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals(requiredAuthority));
+        throw new AccessDeniedException("No matching rule found");
     }
 }

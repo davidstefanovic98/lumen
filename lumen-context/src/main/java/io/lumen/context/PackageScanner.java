@@ -6,8 +6,10 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
-final class PackageScanner {
+public final class PackageScanner {
 
     private PackageScanner() {}
 
@@ -64,21 +66,20 @@ final class PackageScanner {
     }
 
     private static void scanJar(URL resource, String basePackage, List<Class<?>> classes) throws IOException {
-        // Extract the jar path from the URL (jar:file:/path/to/jar.jar!/package)
         String jarPath = resource.getFile().substring(5, resource.getFile().indexOf("!"));
         String packagePath = basePackage.replace('.', '/');
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
 
-        try (java.util.jar.JarFile jar = new java.util.jar.JarFile(jarPath.replace("%20", " "))) {
-            Enumeration<java.util.jar.JarEntry> entries = jar.entries();
+        try (JarFile jar = new JarFile(jarPath.replace("%20", " "))) {
+            Enumeration<JarEntry> entries = jar.entries();
             while (entries.hasMoreElements()) {
-                java.util.jar.JarEntry entry = entries.hasMoreElements() ? entries.nextElement() : null;
-                if (entry == null) break;
-
+                JarEntry entry = entries.nextElement();
                 String name = entry.getName();
+
                 if (name.startsWith(packagePath) && name.endsWith(".class")) {
                     String className = name.replace('/', '.').replace(".class", "");
                     try {
-                        classes.add(Class.forName(className));
+                        classes.add(Class.forName(className, false, loader));
                     } catch (ClassNotFoundException ignored) {}
                 }
             }

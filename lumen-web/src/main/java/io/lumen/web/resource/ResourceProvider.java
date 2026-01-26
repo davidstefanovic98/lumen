@@ -1,6 +1,5 @@
 package io.lumen.web.resource;
 
-import io.lumen.context.annotation.Component;
 import jakarta.servlet.ServletContext;
 
 import java.io.InputStream;
@@ -8,7 +7,6 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-@Component
 public class ResourceProvider {
     private final ServletContext servletContext;
     private static final Map<String, String> MIME_MAPPING = new HashMap<>();

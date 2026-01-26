@@ -6,6 +6,7 @@ import io.lumen.core.LumenInitializer;
 import io.lumen.core.annotation.Order;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
+import io.lumen.core.logging.LoggingConfigurator;
 import io.lumen.mvc.argument.ModelAndViewArgumentResolver;
 import io.lumen.mvc.handler.ViewResultHandler;
 import io.lumen.web.RouteInvoker;
@@ -13,7 +14,6 @@ import io.lumen.web.argument.CompositeMethodArgumentResolver;
 import io.lumen.web.view.ViewResolver;
 import jakarta.servlet.ServletContext;
 
-@Component
 @Order(2)
 public class WebMvcLumenInitializer implements LumenInitializer {
     private static final Logger logger = LoggerFactory.getLogger(WebMvcLumenInitializer.class);
@@ -37,6 +37,7 @@ public class WebMvcLumenInitializer implements LumenInitializer {
 
     @Override
     public void onStartup() {
+        LoggingConfigurator.configure();
         if (viewResolver == null) {
             logger.warn("No ViewResolver found in context. Skipping MVC configuration.");
             return;

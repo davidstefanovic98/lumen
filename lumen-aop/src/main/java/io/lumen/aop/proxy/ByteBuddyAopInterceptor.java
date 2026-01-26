@@ -13,7 +13,10 @@ import java.util.concurrent.Callable;
 
 public class ByteBuddyAopInterceptor {
     private final List<MethodInterceptor> interceptors;
-    public ByteBuddyAopInterceptor(List<MethodInterceptor> interceptors) { this.interceptors = interceptors; }
+
+    public ByteBuddyAopInterceptor(List<MethodInterceptor> interceptors) {
+        this.interceptors = interceptors;
+    }
 
     @RuntimeType
     public Object intercept(@Origin Method method, @AllArguments Object[] args, @SuperCall Callable<?> zuper) throws Throwable {
