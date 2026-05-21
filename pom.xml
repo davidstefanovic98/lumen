@@ -9,10 +9,24 @@
     <packaging>pom</packaging>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
     <modules>
         <module>lumen-core</module>
@@ -23,5 +37,15 @@
         <module>lumen-security</module>
         <module>lumen-aop</module>
         <module>lumen-data</module>
+        <module>lumen-boot</module>
+        <module>lumen-boot-starter</module>
+        <module>lumen-boot-starter-web</module>
+        <module>lumen-boot-starter-thymeleaf</module>
+        <module>lumen-boot-starter-data-jpa</module>
+        <module>lumen-boot-starter-security</module>
+        <module>lumen-validation</module>
+        <module>lumen-boot-starter-validation</module>
+        <module>lumen-cache</module>
+        <module>lumen-boot-starter-cache</module>
     </modules>
 </project>

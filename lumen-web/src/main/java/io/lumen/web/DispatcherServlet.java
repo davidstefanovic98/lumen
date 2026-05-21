@@ -45,8 +45,9 @@ public class DispatcherServlet extends HttpServlet {
 
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String path = req.getPathInfo();
-        if (path == null)
+        String contextPath = req.getContextPath();
+        String path = req.getRequestURI().substring(contextPath.length());
+        if (path.isEmpty())
             path = "/";
 
         if (path.length() > 1 && path.endsWith("/")) {
@@ -77,6 +78,14 @@ public class DispatcherServlet extends HttpServlet {
             throw new NotFoundException("No route or static resource found for " + method + " " + unquote(path));
 
         } catch (Exception e) {
+            // Let security exceptions propagate so ExceptionTranslationFilter can handle them
+            Throwable cause = e;
+            while (cause != null) {
+                if (cause.getClass().getName().equals("io.lumen.security.exception.AccessDeniedException")) {
+                    throw new RuntimeException(e);
+                }
+                cause = cause.getCause();
+            }
             if (!exceptionResolver.resolve(req, resp, e)) {
                 logger.error("Unresolved error in DispatcherServlet", e);
                 resp.sendError(500, "Internal Server Error");

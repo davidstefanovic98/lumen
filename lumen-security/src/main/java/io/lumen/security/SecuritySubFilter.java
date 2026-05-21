@@ -8,10 +8,11 @@ import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 
 /**
- * A sub-filter for security processing in the Lumen framework.
- * User's custom security filters should implement this interface.
+ * A sub-filter within a Lumen security filter chain.
+ * Implement this to inject custom authentication logic (e.g. JWT extraction)
+ * at a specific position in the chain using {@link #getOrder()}.
  */
-interface SecuritySubFilter {
+public interface SecuritySubFilter {
 
     void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException;

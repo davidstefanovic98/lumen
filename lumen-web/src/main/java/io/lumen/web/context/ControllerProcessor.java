@@ -17,12 +17,22 @@ public class ControllerProcessor implements LightProcessor {
 
     @Override
     public Object afterInstantiation(LightInstance light, Object instance) {
-        Class<?> type = instance.getClass();
-
-        if (hasAnnotation(type, Controller.class)) {
-            ControllerScanner.scanController(instance, type, routeRegistry);
+        Class<?> controllerType = findControllerType(instance.getClass());
+            if (controllerType != null) {
+            ControllerScanner.scanController(instance, controllerType, routeRegistry);
         }
-
         return instance;
+    }
+
+    // Walk up the class hierarchy to find the actual @Controller class.
+    // This handles the case where the instance is a proxy (e.g. for @PreAuthorize)
+    // whose generated methods don't carry the original mapping annotations.
+    private Class<?> findControllerType(Class<?> type) {
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            if (hasAnnotation(current, Controller.class)) return current;
+            current = current.getSuperclass();
+        }
+        return null;
     }
 }

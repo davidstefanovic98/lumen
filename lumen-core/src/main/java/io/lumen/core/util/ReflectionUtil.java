@@ -92,4 +92,45 @@ public class ReflectionUtil {
         }
         return false;
     }
+
+    // ── Classloader-resilient annotation helpers ──────────────────────────────
+    // exec:java and similar runners can load the same annotation class via two
+    // different ClassLoaders, making isAnnotationPresent() return false even
+    // when the annotation IS present. These methods compare by class name instead.
+
+    public static boolean hasAnnotationByName(AnnotatedElement element, String annotationClassName) {
+        for (Annotation ann : element.getAnnotations()) {
+            if (annotationClassName.equals(ann.annotationType().getName())) return true;
+        }
+        return false;
+    }
+
+    public static String getAnnotationStringValue(AnnotatedElement element, String annotationClassName) {
+        for (Annotation ann : element.getAnnotations()) {
+            if (annotationClassName.equals(ann.annotationType().getName())) {
+                try {
+                    return (String) ann.annotationType().getMethod("value").invoke(ann);
+                } catch (Exception ignored) {}
+            }
+        }
+        return null;
+    }
+
+    public static boolean hasParameterAnnotationByName(Parameter parameter, String annotationClassName) {
+        for (Annotation ann : parameter.getAnnotations()) {
+            if (annotationClassName.equals(ann.annotationType().getName())) return true;
+        }
+        return false;
+    }
+
+    public static String getParameterAnnotationStringValue(Parameter parameter, String annotationClassName) {
+        for (Annotation ann : parameter.getAnnotations()) {
+            if (annotationClassName.equals(ann.annotationType().getName())) {
+                try {
+                    return (String) ann.annotationType().getMethod("value").invoke(ann);
+                } catch (Exception ignored) {}
+            }
+        }
+        return null;
+    }
 }

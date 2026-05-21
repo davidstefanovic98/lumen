@@ -14,6 +14,13 @@ public abstract class OncePerRequestFilter implements SecuritySubFilter {
     private static final String ALREADY_FILTERED_SUFFIX = ".FILTERED";
 
     @Override
+    public int getOrder() {
+        io.lumen.core.annotation.Order order =
+                getClass().getAnnotation(io.lumen.core.annotation.Order.class);
+        return order != null ? order.value() : Integer.MAX_VALUE;
+    }
+
+    @Override
     public final void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 

@@ -32,7 +32,14 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
     public AnnotationWebApplicationContext(Class<?> configClass, int port) {
         this.port = port;
         this.context = new AnnotationApplicationContext();
+        var container = context.getLightContainer();
+        this.routeRegistry = container.internals().getLightByType(RouteRegistry.class);
+        context.scan(configClass);
+    }
 
+    public AnnotationWebApplicationContext(Class<?> configClass) {
+        this.port = -1;
+        this.context = new AnnotationApplicationContext();
         var container = context.getLightContainer();
         this.routeRegistry = container.internals().getLightByType(RouteRegistry.class);
         context.scan(configClass);
@@ -40,17 +47,18 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
 
     @Override
     public void startWebServer() {
+        int resolvedPort = this.port != -1 ? this.port
+                : Integer.parseInt(context.getEnvironment().getProperty("server.port", "8080"));
         try {
             StartupBanner.print(logger);
-            webServer = new WebServer(port);
-
+            webServer = new WebServer(resolvedPort);
             webServer.addSCI(new LumenServletContainerInitializer(this));
-
             webServer.start();
-            logger.info("Lumen application started successfully on port: {}", port);
+            logger.info("Lumen application started successfully on port: {}", resolvedPort);
             webServer.await();
         } catch (Exception e) {
             logger.error("Critical failure during web server startup", e);
+            throw new RuntimeException("Failed to start web server on port " + resolvedPort, e);
         }
     }
 

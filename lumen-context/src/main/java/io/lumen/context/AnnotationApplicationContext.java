@@ -25,6 +25,7 @@ public class AnnotationApplicationContext implements ApplicationContext {
                 lightCreator);
         this.container.setApplicationContext(this);
         this.config = new Config();
+        this.container.registerExternalInstance(Environment.class, environment);
         ModuleInitializer.initializeModules(configClass, container);
         new ConfigProcessor(container, configClass);
         container.initialize();
@@ -38,6 +39,7 @@ public class AnnotationApplicationContext implements ApplicationContext {
                 getLightCreator());
         this.container.setApplicationContext(this);
         this.config = new Config();
+        this.container.registerExternalInstance(Environment.class, environment);
         registerDefaultProcessors();
     }
 

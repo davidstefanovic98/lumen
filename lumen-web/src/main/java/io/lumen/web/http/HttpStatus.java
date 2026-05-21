@@ -11,6 +11,7 @@ public enum HttpStatus {
     NOT_FOUND(404, "Not Found"),
     NOT_ACCEPTABLE(406, "Not Acceptable"),
     UNSUPPORTED_MEDIA_TYPE(415, "Unsupported Media Type"),
+    UNPROCESSABLE_ENTITY(422, "Unprocessable Entity"),
     INTERNAL_SERVER_ERROR(500, "Internal Server Error");
 
     private final int value;

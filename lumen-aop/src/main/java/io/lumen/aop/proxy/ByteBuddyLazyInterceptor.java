@@ -6,6 +6,7 @@ import net.bytebuddy.implementation.bind.annotation.AllArguments;
 import net.bytebuddy.implementation.bind.annotation.Origin;
 import net.bytebuddy.implementation.bind.annotation.RuntimeType;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 public class ByteBuddyLazyInterceptor {
@@ -31,6 +32,10 @@ public class ByteBuddyLazyInterceptor {
                 throw new IllegalStateException("Lazy dependency '" + light.getName() + "' not found in container.");
             }
         }
-        return method.invoke(delegate, args);
+        try {
+            return method.invoke(delegate, args);
+        } catch (InvocationTargetException e) {
+            throw e.getCause();
+        }
     }
 }

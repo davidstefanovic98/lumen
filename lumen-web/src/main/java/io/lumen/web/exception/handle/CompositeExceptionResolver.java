@@ -4,19 +4,24 @@ import io.lumen.web.http.HttpMessageConverterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CompositeExceptionResolver {
     private final List<ExceptionResolver> resolvers;
 
     public CompositeExceptionResolver(ControllerAdviceRegistry adviceRegistry, HttpMessageConverterRegistry converterRegistry) {
-        // Order matters for resolvers
-        this.resolvers = List.of(
-                new GlobalExceptionHandleResolver(adviceRegistry, converterRegistry),
-                new NotFoundExceptionResolver(),
-                new MediaTypeExceptionResolver(),
-                new DefaultExceptionResolver()
-        );
+        List<ExceptionResolver> list = new ArrayList<>();
+        list.add(new GlobalExceptionHandleResolver(adviceRegistry, converterRegistry));
+        list.add(new NotFoundExceptionResolver());
+        list.add(new MediaTypeExceptionResolver());
+
+        if (isValidationPresent()) {
+            list.add(new ValidationExceptionResolver());
+        }
+
+        list.add(new DefaultExceptionResolver());
+        this.resolvers = list;
     }
 
     public boolean resolve(HttpServletRequest req, HttpServletResponse resp, Exception ex) {
@@ -26,5 +31,14 @@ public class CompositeExceptionResolver {
             }
         }
         return false;
+    }
+
+    private boolean isValidationPresent() {
+        try {
+            Class.forName("io.lumen.validation.ValidationException");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 }

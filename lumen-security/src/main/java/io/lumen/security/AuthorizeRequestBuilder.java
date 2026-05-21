@@ -12,7 +12,11 @@ public class AuthorizeRequestBuilder {
     }
 
     public AntMatcherConfig antMatchers(String... patterns) {
-        return new AntMatcherConfig(this, patterns);
+        return new AntMatcherConfig(this, patterns, null);
+    }
+
+    public AntMatcherConfig antMatchers(HttpMethod httpMethod, String... patterns) {
+        return new AntMatcherConfig(this, patterns, httpMethod);
     }
 
     public RegexMatcherConfig regexMatchers(String... regexes) {
@@ -26,30 +30,40 @@ public class AuthorizeRequestBuilder {
     public static class AntMatcherConfig {
         private final AuthorizeRequestBuilder builder;
         private final String[] patterns;
+        private final HttpMethod httpMethod;
 
-        public AntMatcherConfig(AuthorizeRequestBuilder builder, String[] patterns) {
+        public AntMatcherConfig(AuthorizeRequestBuilder builder, String[] patterns, HttpMethod httpMethod) {
             this.builder = builder;
             this.patterns = patterns;
+            this.httpMethod = httpMethod;
         }
 
         public AuthorizeRequestBuilder hasRole(String role) {
             for (String pattern : patterns) {
-                builder.rules.add(new AuthorizationRule(new AntPathRequestMatcher(pattern), role));
-            }
-            return builder;
-        }
-
-        public AuthorizeRequestBuilder hasRole(HttpMethod method, String role) {
-            for (String pattern : patterns) {
-                builder.rules.add(new AuthorizationRule(
-                        new AntPathRequestMatcher(pattern, method), role));
+                RequestMatcher matcher = httpMethod != null
+                        ? new AntPathRequestMatcher(pattern, httpMethod)
+                        : new AntPathRequestMatcher(pattern);
+                builder.rules.add(new AuthorizationRule(matcher, role));
             }
             return builder;
         }
 
         public AuthorizeRequestBuilder permitAll() {
             for (String pattern : patterns) {
-                builder.rules.add(new AuthorizationRule(new AntPathRequestMatcher(pattern), "PERMIT_ALL"));
+                RequestMatcher matcher = httpMethod != null
+                        ? new AntPathRequestMatcher(pattern, httpMethod)
+                        : new AntPathRequestMatcher(pattern);
+                builder.rules.add(new AuthorizationRule(matcher, "PERMIT_ALL"));
+            }
+            return builder;
+        }
+
+        public AuthorizeRequestBuilder authenticated() {
+            for (String pattern : patterns) {
+                RequestMatcher matcher = httpMethod != null
+                        ? new AntPathRequestMatcher(pattern, httpMethod)
+                        : new AntPathRequestMatcher(pattern);
+                builder.rules.add(new AuthorizationRule(matcher, "IS_AUTHENTICATED"));
             }
             return builder;
         }

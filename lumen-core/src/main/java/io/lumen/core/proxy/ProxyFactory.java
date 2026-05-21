@@ -46,6 +46,10 @@ public class ProxyFactory {
         return getRequiredProvider().createInterfaceProxy(type, interceptors);
     }
 
+    public static <T> T createDelegatingProxy(Class<T> type, T target, List<MethodInterceptor> interceptors) {
+        return getRequiredProvider().createDelegatingProxy(type, target, interceptors);
+    }
+
     public static List<?> createLazyCollection(LightContainer container, List<LightInstance> elements) {
         return new AbstractList<>() {
             @Override public Object get(int index) { return container.getLight(elements.get(index).getName()); }

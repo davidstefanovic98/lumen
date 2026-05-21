@@ -12,7 +12,6 @@ import io.lumen.core.component.LightFactory;
 import io.lumen.core.component.processor.LightProcessor;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
-import io.lumen.core.logging.LoggingConfigurator;
 import io.lumen.core.proxy.ProxyFactory;
 
 import java.lang.reflect.Method;
@@ -43,9 +42,8 @@ class ConfigProcessor {
      * @param configClass The user-defined configuration class
      */
     void process(Class<?> configClass) {
-        LoggingConfigurator.configure();
         try {
-            if (!configClass.isAnnotationPresent(Configuration.class)) {
+            if (!isConfiguration(configClass)) {
                 logger.warn("Class {} is not annotated with @Configuration. Skipping bean method processing.", configClass.getName());
                 return;
             }
@@ -62,7 +60,12 @@ class ConfigProcessor {
 
             if (configClass.isAnnotationPresent(ComponentScan.class)) {
                 ComponentScan scan = configClass.getAnnotation(ComponentScan.class);
-                scanPackage(scan.basePackages());
+                String[] packages = scan.basePackages().length > 0
+                        ? scan.basePackages()
+                        : new String[] { configClass.getPackageName() };
+                scanPackage(packages);
+            } else {
+                scanPackage(new String[] { configClass.getPackageName() });
             }
 
             for (Method method : configClass.getDeclaredMethods()) {
@@ -79,8 +82,16 @@ class ConfigProcessor {
         }
     }
 
+    private boolean isConfiguration(Class<?> clazz) {
+        if (clazz.isAnnotationPresent(Configuration.class)) return true;
+        for (var ann : clazz.getAnnotations()) {
+            if (ann.annotationType().isAnnotationPresent(Configuration.class)) return true;
+        }
+        return false;
+    }
+
     private Object instantiateConfigClass(Class<?> configClass) {
-        if (configClass.isAnnotationPresent(Configuration.class)) {
+        if (isConfiguration(configClass)) {
             return ProxyFactory.createConfigurationProxy(configClass, container);
         }
 

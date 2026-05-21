@@ -20,10 +20,18 @@ public class HttpSessionSecurityContextRepository implements SecurityContextRepo
 
     @Override
     public void saveContext(SecurityContext context, HttpServletRequest request, HttpServletResponse response) {
-        if (context.getAuthentication() != null) {
-            var session = request.getSession(true);
-            session.setAttribute(LUMEN_SECURITY_CONTEXT_KEY, context);
-        }
+        if (context.getAuthentication() == null) return;
+
+        // If the response is already committed (e.g. a JSON API response whose body
+        // was written before the filter chain unwound), we cannot add Set-Cookie to
+        // create a new session.  Skip saving — stateless JWT clients re-authenticate
+        // via the token on every request anyway.
+        // For stateful form-login the response is a 302 redirect which is NOT yet
+        // committed at this point, so session creation works normally.
+        if (response.isCommitted()) return;
+
+        var session = request.getSession(true);
+        session.setAttribute(LUMEN_SECURITY_CONTEXT_KEY, context);
     }
 
     @Override

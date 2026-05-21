@@ -156,9 +156,10 @@ class AnnotationLightAnalyzer implements LightAnalyzer {
 
         boolean isLazy = parameter.isAnnotationPresent(Lazy.class);
 
-        if (parameter.isAnnotationPresent(Value.class)) {
-            String key = parameter.getAnnotation(Value.class).value();
-            return new Dependency(type, null, true, isCollection, null, Dependency.DependencyType.VALUE, key, isLazy);
+        // Use name-based lookup to be resilient against classloader isolation (e.g. exec:java).
+        String valueKey = ReflectionUtil.getParameterAnnotationStringValue(parameter, "io.lumen.core.annotation.Value");
+        if (valueKey != null) {
+            return new Dependency(type, null, true, isCollection, null, Dependency.DependencyType.VALUE, valueKey, isLazy);
         }
 
         String dependencyName = ParameterNameDiscoverer.getParameterName(parameter);
@@ -183,4 +184,5 @@ class AnnotationLightAnalyzer implements LightAnalyzer {
                 isLazy
         );
     }
+
 }

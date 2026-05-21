@@ -9,6 +9,7 @@ import io.lumen.web.http.HttpStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +36,15 @@ public class RouteInvoker {
                 route.getMethod().getParameters(), request, response, match.pathVariables()
         );
 
-        Object returnValue = route.getMethod().invoke(route.getController(), args);
+        Object returnValue;
+        try {
+            returnValue = route.getMethod().invoke(route.getController(), args);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException re) throw re;
+            if (cause instanceof Exception ex) throw ex;
+            throw new RuntimeException(cause);
+        }
 
         for (RouteResultHandler handler : resultHandlers) {
             if (handler.supports(returnValue, route)) {

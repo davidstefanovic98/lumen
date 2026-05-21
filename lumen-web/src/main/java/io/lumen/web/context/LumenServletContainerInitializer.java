@@ -1,6 +1,5 @@
 package io.lumen.web.context;
 
-import io.lumen.core.logging.LoggingConfigurator;
 import jakarta.servlet.ServletContainerInitializer;
 import jakarta.servlet.ServletContext;
 
@@ -16,7 +15,6 @@ public class LumenServletContainerInitializer implements ServletContainerInitial
 
     @Override
     public void onStartup(Set<Class<?>> c, ServletContext ctx) {
-        LoggingConfigurator.configure();
         lumenContext.onWebStartup(ctx);
     }
 }

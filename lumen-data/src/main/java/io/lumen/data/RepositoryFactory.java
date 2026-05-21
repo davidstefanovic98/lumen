@@ -6,7 +6,7 @@ import io.lumen.core.proxy.ProxyProvider;
 import io.lumen.data.query.CompositeQueryParser;
 import io.lumen.data.repository.Repository;
 import io.lumen.data.repository.proxy.JpaRepositoryInterceptor;
-import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -20,9 +20,9 @@ public class RepositoryFactory {
     }
 
     public <T> T create(Class<T> repoInterface) {
-        EntityManager em = container.internals().getLightByType(EntityManager.class);
+        EntityManagerFactory emf = container.internals().getLightByType(EntityManagerFactory.class);
         Class<?> entityClass = resolveEntityClass(repoInterface);
-        var interceptor = new JpaRepositoryInterceptor(em, entityClass, new CompositeQueryParser());
+        var interceptor = new JpaRepositoryInterceptor(emf, entityClass, new CompositeQueryParser());
         return ProxyFactory.createInterfaceProxy(repoInterface, List.of(interceptor));
     }
 

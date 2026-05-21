@@ -7,7 +7,7 @@ import java.lang.annotation.*;
 @RequestMapping
 @Documented
 public @interface PutMapping {
-    String value();
+    String value() default "";
     String path() default "";
     String[] consumes() default {};
     String[] produces() default {};

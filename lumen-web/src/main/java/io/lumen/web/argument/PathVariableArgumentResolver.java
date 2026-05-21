@@ -1,5 +1,6 @@
 package io.lumen.web.argument;
 
+import io.lumen.core.util.ParameterNameDiscoverer;
 import io.lumen.web.annotation.PathVariable;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -9,9 +10,6 @@ import java.util.Map;
 
 import static io.lumen.web.util.TypeConverter.convert;
 
-/**
- * Resolver for method parameters annotated with @PathVariable.
- */
 public class PathVariableArgumentResolver implements MethodArgumentResolver {
 
     @Override
@@ -22,7 +20,9 @@ public class PathVariableArgumentResolver implements MethodArgumentResolver {
     @Override
     public Object resolve(Parameter parameter, HttpServletRequest request, HttpServletResponse response, Map<String, String> pathVariables) {
         PathVariable annotation = parameter.getAnnotation(PathVariable.class);
-        String value = pathVariables.get(annotation.value());
-        return convert(value, parameter.getType());
+        String name = annotation.value().isEmpty()
+                ? ParameterNameDiscoverer.getParameterName(parameter)
+                : annotation.value();
+        return convert(pathVariables.get(name), parameter.getType());
     }
 }

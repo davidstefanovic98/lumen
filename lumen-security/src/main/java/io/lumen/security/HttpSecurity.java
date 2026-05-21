@@ -4,6 +4,7 @@ import io.lumen.security.manager.AuthenticationManager;
 import io.lumen.security.repository.HttpSessionSecurityContextRepository;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -28,6 +29,8 @@ public class HttpSecurity {
         private String logoutUrl = "/logout";
         private String logoutSuccessUrl = "/login?logout";
 
+        private final List<SecuritySubFilter> customFilters = new ArrayList<>();
+
         protected Builder(AuthenticationManager authManager) {
             this.authManager = authManager;
         }
@@ -47,6 +50,11 @@ public class HttpSecurity {
             this.defaultSuccessUrl = configurer.defaultSuccessUrl;
             this.failureUrl = configurer.failureUrl;
             this.isCustomLoginPage = configurer.customPageSet;
+            return this;
+        }
+
+        public Builder addFilter(SecuritySubFilter filter) {
+            this.customFilters.add(filter);
             return this;
         }
 
@@ -81,6 +89,8 @@ public class HttpSecurity {
 
             filters.add(new ExceptionTranslationFilter(loginPage));
             filters.add(new AuthorizationFilter(rules));
+            filters.addAll(customFilters);
+            filters.sort(Comparator.comparingInt(SecuritySubFilter::getOrder));
 
             return new SecurityFilterChain("/**", filters);
         }

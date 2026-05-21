@@ -1,0 +1,23 @@
+<configuration>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%15.15thread] %cyan(%-40.40logger{39}) : %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Tomcat / Catalina internals -->
+    <logger name="org.apache" level="WARN"/>
+
+    <!-- Hibernate internals — connection pool warnings are expected on startup -->
+    <logger name="org.hibernate" level="WARN"/>
+
+    <!-- Lumen framework -->
+    <logger name="io.lumen" level="INFO"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

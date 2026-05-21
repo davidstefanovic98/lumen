@@ -119,8 +119,11 @@ public class LightContainer {
             resolver.resolve(light, lights);
         }
 
-        // Instantiate eager singletons
-        for (LightInstance light : lights.values()) {
+        // Instantiate eager singletons.
+        // Snapshot lights first: post-processors may call registerExternalInstance()
+        // which adds new entries to lights — iterating a LinkedHashMap while adding
+        // to it throws ConcurrentModificationException.
+        for (LightInstance light : new ArrayList<>(lights.values())) {
             LightDefinition def = light.getMetadata().getDefinition();
             if (!def.isLazy() && def.getScope() == ScopeType.SINGLETON) {
                 instantiator.create(light, this);
@@ -135,12 +138,16 @@ public class LightContainer {
     }
 
     public <T> T getLight(Class<T> type) {
-        checkInitialized();
         List<LightInstance> matches = new ArrayList<>();
         for (LightInstance light : lights.values()) {
             if (type.isAssignableFrom(light.getType()))
                 matches.add(light);
         }
+
+        // External (READY) instances are available before initialization
+        boolean allReady = !matches.isEmpty() &&
+                matches.stream().allMatch(l -> l.getState() == LightInstance.LightState.READY);
+        if (!allReady) checkInitialized();
 
         if (matches.isEmpty())
             throw new NoLightFoundException("No light found for type: " + type.getName());
@@ -235,12 +242,7 @@ public class LightContainer {
                 matches.add(light);
             }
         }
-//
-//        if (matches.isEmpty())
-//            throw new NoLightFoundException("No light found for type: " + type.getName());
-//
-//        if (matches.size() > 1)
-//            throw new MultipleLightFoundException("Multiple lights found for type: " + type.getName());
+
         if (matches.isEmpty()) {
             return null;
         }

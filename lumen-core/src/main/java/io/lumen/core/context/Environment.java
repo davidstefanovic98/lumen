@@ -14,12 +14,18 @@ public class Environment {
         return properties.get(key);
     }
 
+    public String getProperty(String key, String defaultValue) {
+        String value = properties.get(key);
+        return value != null ? value : defaultValue;
+    }
+
     public <T> T getProperty(String key, Class<T> type) {
         String value = properties.get(key);
         if (value == null) return null;
 
         if (type == String.class) return type.cast(value);
         if (type == Integer.class || type == int.class) return type.cast(Integer.parseInt(value));
+        if (type == Long.class    || type == long.class)  return type.cast(Long.parseLong(value));
         if (type == Boolean.class || type == boolean.class) return type.cast(Boolean.parseBoolean(value));
 
         throw new IllegalArgumentException("Unsupported type: " + type);
