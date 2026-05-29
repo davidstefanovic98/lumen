@@ -17,7 +17,9 @@ import io.lumen.web.resource.StaticResourceResultHandler;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContainerInitializer;
 
+import java.net.BindException;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -28,6 +30,7 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
     private RouteRegistry routeRegistry;
     private final int port;
     private WebServer webServer;
+    private volatile boolean started = false;
 
     public AnnotationWebApplicationContext(Class<?> configClass, int port) {
         this.port = port;
@@ -47,16 +50,36 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
 
     @Override
     public void startWebServer() {
+        if (started) {
+            throw new IllegalStateException("startWebServer() has already been called on this context.");
+        }
+
         int resolvedPort = this.port != -1 ? this.port
                 : Integer.parseInt(context.getEnvironment().getProperty("server.port", "8080"));
+        int shutdownTimeout = Integer.parseInt(
+                context.getEnvironment().getProperty("lumen.shutdown.timeout-seconds", "30"));
+
         try {
             StartupBanner.print(logger);
             webServer = new WebServer(resolvedPort);
+            tryRegisterWebSocketSCI(webServer);
             webServer.addSCI(new LumenServletContainerInitializer(this));
             webServer.start();
-            logger.info("Lumen application started successfully on port: {}", resolvedPort);
+            started = true;
+
+            int actualPort = resolvedPort == 0 ? webServer.getBoundPort() : resolvedPort;
+            logger.info("Lumen application started successfully on port: {}", actualPort);
+
+            registerShutdownHook(shutdownTimeout);
             webServer.await();
+
         } catch (Exception e) {
+            Throwable root = rootCause(e);
+            if (root instanceof BindException) {
+                throw new RuntimeException(
+                        "Port " + resolvedPort + " is already in use. " +
+                        "Change server.port in application.properties or stop the process using that port.", e);
+            }
             logger.error("Critical failure during web server startup", e);
             throw new RuntimeException("Failed to start web server on port " + resolvedPort, e);
         }
@@ -82,6 +105,57 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         logger.info("Web context initialized: {} routes registered", routeRegistry.getRouteCount());
     }
 
+    @Override
+    public void stop() {
+        stop(0);
+    }
+
+    public void stop(int gracePeriodSeconds) {
+        if (webServer != null) {
+            logger.info("Lumen application shutting down (grace period: {}s)...", gracePeriodSeconds);
+            webServer.stopGracefully(gracePeriodSeconds);
+        }
+        closeResources();
+        logger.info("Lumen application stopped.");
+    }
+
+    private void registerShutdownHook(int timeoutSeconds) {
+        Runtime.getRuntime().addShutdownHook(new Thread(() ->
+                stop(timeoutSeconds), "lumen-shutdown"));
+    }
+
+    private void closeResources() {
+        // Close EntityManagerFactory if JPA is on the classpath and an EMF was registered.
+        // Using reflection to keep lumen-web free of a hard JPA dependency.
+        var container = context.getLightContainer();
+        try {
+            @SuppressWarnings("unchecked")
+            Class<Object> emfClass = (Class<Object>)
+                    Class.forName("jakarta.persistence.EntityManagerFactory");
+            if (container.hasLight(emfClass)) {
+                Object emf = container.getLight(emfClass);
+                emfClass.getMethod("close").invoke(emf);
+                logger.info("EntityManagerFactory closed.");
+            }
+        } catch (ClassNotFoundException ignored) {
+            // JPA not on classpath
+        } catch (Exception e) {
+            logger.warn("Error closing EntityManagerFactory: {}", e.getMessage());
+        }
+    }
+
+    private void tryRegisterWebSocketSCI(WebServer webServer) {
+        try {
+            Class<?> wsciClass = Class.forName("org.apache.tomcat.websocket.server.WsSci");
+            webServer.addSCI((ServletContainerInitializer) wsciClass.getDeclaredConstructor().newInstance());
+            logger.info("WebSocket support enabled (WsSci registered)");
+        } catch (ClassNotFoundException ignored) {
+            // tomcat-embed-websocket not on classpath — WebSocket disabled
+        } catch (Exception e) {
+            logger.warn("Could not register WebSocket SCI: {}", e.getMessage());
+        }
+    }
+
     private void registerDispatcherServlet(ServletContext servletContext) {
         var container = context.getLightContainer();
         var internals = container.internals();
@@ -101,7 +175,6 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         registration.addMapping("/*");
 
         var multipartConfig = container.internals().getLightByType(MultipartConfig.class);
-
         if (multipartConfig != null) {
             registration.setMultipartConfig(multipartConfig.toServletConfig());
             logger.info("DispatcherServlet registered with custom MultipartConfig.");
@@ -120,27 +193,18 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
 
         for (LumenFilter filter : filters) {
             String filterName = filter.getClass().getSimpleName();
-
             FilterRegistration.Dynamic registration = servletContext.addFilter(filterName, filter);
-
             if (registration != null) {
                 registration.addMappingForUrlPatterns(
-                        EnumSet.allOf(DispatcherType.class),
-                        true,
-                        "/*"
-                );
+                        EnumSet.allOf(DispatcherType.class), true, "/*");
                 logger.info("Filter [{}] registered and mapped to /*", filterName);
             }
         }
     }
 
-    @Override
-    public void stop() {
-        if (webServer != null) {
-            logger.info("Stopping web server...");
-            webServer.stop();
-            logger.info("Web server stopped");
-        }
+    private static Throwable rootCause(Throwable t) {
+        Throwable cause = t;
+        while (cause.getCause() != null) cause = cause.getCause();
+        return cause;
     }
 }
-

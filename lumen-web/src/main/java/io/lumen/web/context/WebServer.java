@@ -4,6 +4,7 @@ import jakarta.servlet.ServletContainerInitializer;
 import jakarta.servlet.http.HttpServlet;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
+import org.apache.catalina.core.StandardService;
 import org.apache.catalina.startup.Tomcat;
 
 import java.io.File;
@@ -45,11 +46,27 @@ class WebServer {
         tomcat.getServer().await();
     }
 
-    public void stop() {
+    /**
+     * Returns the port the connector is actually bound to.
+     * Useful when server.port=0 (random port) — call after start().
+     */
+    public int getBoundPort() {
+        return tomcat.getConnector().getLocalPort();
+    }
+
+    public void stopGracefully(int timeoutSeconds) {
         try {
+            if (timeoutSeconds > 0 && tomcat.getService() instanceof StandardService svc) {
+                svc.setGracefulStopAwaitMillis(timeoutSeconds * 1000L);
+            }
             tomcat.stop();
+            tomcat.destroy();
         } catch (LifecycleException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error during graceful shutdown", e);
         }
+    }
+
+    public void stop() {
+        stopGracefully(0);
     }
 }

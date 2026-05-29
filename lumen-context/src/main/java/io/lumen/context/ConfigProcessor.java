@@ -44,7 +44,7 @@ class ConfigProcessor {
     void process(Class<?> configClass) {
         try {
             if (!isConfiguration(configClass)) {
-                logger.warn("Class {} is not annotated with @Configuration. Skipping bean method processing.", configClass.getName());
+                logger.warn("Class {} is not annotated with @Configuration. Skipping light method processing.", configClass.getName());
                 return;
             }
 

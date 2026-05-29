@@ -27,7 +27,12 @@ final class ModuleInitializer {
         }));
 
         for (LumenModule module : modules) {
-            module.init(container, basePackages);
+            try {
+                module.init(container, basePackages);
+            } catch (Exception e) {
+                throw new RuntimeException(
+                        "Module [" + module.getClass().getSimpleName() + "] failed to initialize", e);
+            }
         }
     }
 

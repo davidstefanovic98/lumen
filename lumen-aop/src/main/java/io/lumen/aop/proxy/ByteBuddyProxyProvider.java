@@ -12,14 +12,26 @@ import net.bytebuddy.implementation.InvocationHandlerAdapter;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.matcher.ElementMatchers;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
+import sun.misc.Unsafe;
+
 public class ByteBuddyProxyProvider implements ProxyProvider {
+
+    private static final Unsafe UNSAFE;
 
     static {
         System.setProperty("net.bytebuddy.experimental", "true");
+        try {
+            Field f = Unsafe.class.getDeclaredField("theUnsafe");
+            f.setAccessible(true);
+            UNSAFE = (Unsafe) f.get(null);
+        } catch (Exception e) {
+            throw new ExceptionInInitializerError(e);
+        }
     }
 
     public ByteBuddyProxyProvider() {}
@@ -59,7 +71,7 @@ public class ByteBuddyProxyProvider implements ProxyProvider {
     @Override
     public <T> T createDelegatingProxy(Class<T> type, T target, List<MethodInterceptor> interceptors) {
         try {
-            return new ByteBuddy()
+            Class<? extends T> proxyClass = new ByteBuddy()
                     .subclass(type)
                     .method(ElementMatchers.isPublic().and(ElementMatchers.not(ElementMatchers.isStatic())))
                     .intercept(InvocationHandlerAdapter.of((proxy, method, args) -> {
@@ -93,9 +105,8 @@ public class ByteBuddyProxyProvider implements ProxyProvider {
                     }))
                     .make()
                     .load(type.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
-                    .getLoaded()
-                    .getDeclaredConstructor()
-                    .newInstance();
+                    .getLoaded();
+            return allocate(proxyClass);
         } catch (Exception e) {
             throw new RuntimeException("Delegating proxy creation failed for: " + type, e);
         }
@@ -103,16 +114,32 @@ public class ByteBuddyProxyProvider implements ProxyProvider {
 
     private <T> T createProxy(Class<T> type, Object interceptor) {
         try {
-            return new ByteBuddy()
+            Class<? extends T> proxyClass = new ByteBuddy()
                     .subclass(type)
                     .method(ElementMatchers.any())
                     .intercept(MethodDelegation.to(interceptor))
                     .make()
                     .load(type.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
-                    .getLoaded()
-                    .getDeclaredConstructor().newInstance();
+                    .getLoaded();
+            return allocate(proxyClass);
         } catch (Exception e) {
             throw new RuntimeException("Proxy creation failed", e);
+        }
+    }
+
+    /**
+     * Instantiates a proxy class without requiring a no-arg constructor.
+     * Tries the no-arg constructor first (fast path); falls back to
+     * Unsafe.allocateInstance for classes that only have injected constructors.
+     * Safe because proxy subclasses delegate all method calls to the real target
+     * and never read their own inherited fields.
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T allocate(Class<? extends T> proxyClass) throws Exception {
+        try {
+            return proxyClass.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException e) {
+            return (T) UNSAFE.allocateInstance(proxyClass);
         }
     }
 }

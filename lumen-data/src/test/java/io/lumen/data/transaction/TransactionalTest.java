@@ -331,4 +331,32 @@ class TransactionalTest {
     static class PlainService {
         public String doWork() { return "done"; }
     }
+
+    static class ConcreteService {
+        @Transactional
+        public String run() { return "ran"; }
+        public String plain() { return "plain"; }
+    }
+
+    @Test
+    void processor_wrapsConcreteClassWithNoInterface() {
+        DefaultApplicationContext ctx = new DefaultApplicationContext();
+        ctx.registerInstance("transactionManager", new FakeTransactionManager(fakeEm));
+        ctx.getLightContainer().addPostProcessor(new TransactionalProcessor(ctx.getLightContainer()));
+        ctx.register(ConcreteService.class);
+        ctx.initialize();
+
+        ConcreteService svc = ctx.getLight(ConcreteService.class);
+        assertNotNull(svc);
+        assertNotSame(ConcreteService.class, svc.getClass(), "Concrete bean should be proxied");
+
+        fakeEm.tx.reset();
+        svc.run();
+        assertEquals(1, fakeEm.tx.begins,  "run() should start a transaction");
+        assertEquals(1, fakeEm.tx.commits, "run() should commit");
+
+        fakeEm.tx.reset();
+        svc.plain();
+        assertEquals(0, fakeEm.tx.begins, "plain() should not start a transaction");
+    }
 }
