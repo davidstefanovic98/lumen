@@ -1,80 +1,109 @@
 package io.lumen.security.method;
 
+import io.lumen.gleam.CachingExpressionParser;
+import io.lumen.gleam.Gleam;
+import io.lumen.gleam.StandardEvaluationContext;
 import io.lumen.security.authentication.Authentication;
 import io.lumen.security.authority.GrantedAuthority;
 import io.lumen.security.context.SecurityContextHolder;
 import io.lumen.security.exception.AccessDeniedException;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class MethodSecurityExpressionEvaluator {
 
-    private static final Pattern HAS_ROLE      = Pattern.compile("hasRole\\(['\"]([^'\"]+)['\"]\\)");
-    private static final Pattern HAS_ANY_ROLE  = Pattern.compile("hasAnyRole\\(([^)]+)\\)");
+    private static final CachingExpressionParser PARSER = Gleam.newCachingParser();
 
     private MethodSecurityExpressionEvaluator() {}
 
+    /** Evaluates a {@code @PreAuthorize} expression, binding method parameters as variables. */
+    public static void checkPre(String expression, Method method, Object[] args) {
+        evaluate(expression, buildContext(method, args, null));
+    }
+
+    /** Evaluates a {@code @PostAuthorize} expression; return value is available as {@code #returnObject}. */
+    public static void checkPost(String expression, Method method, Object[] args, Object returnValue) {
+        StandardEvaluationContext ctx = buildContext(method, args, returnValue);
+        evaluate(expression, ctx);
+    }
+
+    /**
+     * Backward-compatible single-argument form (no method parameters in context).
+     * Used when caller does not have access to the method reflection object.
+     */
     public static void check(String expression) {
-        String expr = expression.trim();
+        evaluate(expression, buildContext(null, null, null));
+    }
 
-        if (expr.equals("permitAll()"))      return;
-        if (expr.equals("denyAll()"))        throw new AccessDeniedException("denyAll() expression");
-        if (expr.equals("isAuthenticated()")) { requireAuthenticated(); return; }
-        if (expr.equals("isAnonymous()"))    { requireAnonymous(); return; }
+    // ── implementation ────────────────────────────────────────────────────────
 
-        Matcher hasRole = HAS_ROLE.matcher(expr);
-        if (hasRole.matches()) {
-            requireAuthenticated();
-            requireRole(hasRole.group(1));
-            return;
+    private static void evaluate(String expression, StandardEvaluationContext ctx) {
+        Object result;
+        try {
+            result = PARSER.parse(expression).evaluate(ctx);
+        } catch (io.lumen.gleam.EvaluationException e) {
+            throw new AccessDeniedException("Security expression evaluation failed: " + e.getMessage());
+        }
+        if (!isTruthy(result)) {
+            throw new AccessDeniedException("Access denied");
+        }
+    }
+
+    private static StandardEvaluationContext buildContext(Method method, Object[] args, Object returnValue) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        StandardEvaluationContext ctx = new StandardEvaluationContext();
+
+        // Bind method parameters as named variables (#paramName)
+        if (method != null && args != null) {
+            Parameter[] params = method.getParameters();
+            for (int i = 0; i < params.length && i < args.length; i++) {
+                ctx.setVariable(params[i].getName(), args[i]);
+            }
         }
 
-        Matcher hasAnyRole = HAS_ANY_ROLE.matcher(expr);
-        if (hasAnyRole.matches()) {
-            requireAuthenticated();
-            String[] roles = hasAnyRole.group(1).split(",");
-            requireAnyRole(Arrays.stream(roles)
-                    .map(r -> r.trim().replaceAll("['\"]", ""))
-                    .toList());
-            return;
+        // Expose return value for @PostAuthorize
+        if (returnValue != null) {
+            ctx.setVariable("returnObject", returnValue);
         }
 
-        throw new UnsupportedOperationException("Unsupported security expression: " + expression);
+        // Expose authentication object
+        if (auth != null) {
+            ctx.setVariable("authentication", auth);
+        }
+
+        // Register security functions
+        ctx.registerFunction("permitAll",      a -> true);
+        ctx.registerFunction("denyAll",        a -> false);
+        ctx.registerFunction("isAuthenticated",a -> auth != null && auth.isAuthenticated());
+        ctx.registerFunction("isAnonymous",    a -> auth == null || !auth.isAuthenticated());
+
+        ctx.registerFunction("hasRole", a -> {
+            if (auth == null || !auth.isAuthenticated()) return false;
+            String role = (String) a[0];
+            String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+            return auth.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .anyMatch(authority::equals);
+        });
+
+        ctx.registerFunction("hasAnyRole", a -> {
+            if (auth == null || !auth.isAuthenticated()) return false;
+            List<String> authorities = auth.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority).toList();
+            return Arrays.stream(a)
+                    .map(r -> { String s = (String) r; return s.startsWith("ROLE_") ? s : "ROLE_" + s; })
+                    .anyMatch(authorities::contains);
+        });
+
+        return ctx;
     }
 
-    private static void requireAuthenticated() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated())
-            throw new AccessDeniedException("Not authenticated");
-    }
-
-    private static void requireAnonymous() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated())
-            throw new AccessDeniedException("Access denied for authenticated users");
-    }
-
-    private static void requireRole(String role) {
-        String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean hasIt = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(authority::equals);
-        if (!hasIt)
-            throw new AccessDeniedException("Access denied — requires authority: " + authority);
-    }
-
-    private static void requireAnyRole(List<String> roles) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        List<String> authorities = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority).toList();
-        boolean hasAny = roles.stream()
-                .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
-                .anyMatch(authorities::contains);
-        if (!hasAny)
-            throw new AccessDeniedException("Access denied — requires one of: " + roles);
+    private static boolean isTruthy(Object v) {
+        if (v == null)              return false;
+        if (v instanceof Boolean b) return b;
+        return true;
     }
 }

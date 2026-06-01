@@ -1,5 +1,7 @@
 package io.lumen.context;
 
+import io.lumen.context.event.ApplicationEventMulticaster;
+import io.lumen.context.event.EventListenerProcessor;
 import io.lumen.core.component.*;
 import io.lumen.core.component.processor.ApplicationContextAwareProcessor;
 import io.lumen.core.component.processor.DependencyProvider;
@@ -7,6 +9,7 @@ import io.lumen.core.component.processor.PostConstructProcessor;
 import io.lumen.core.config.Config;
 import io.lumen.core.context.ApplicationContext;
 import io.lumen.core.context.Environment;
+import io.lumen.core.event.ApplicationEventPublisher;
 
 import java.util.List;
 
@@ -26,10 +29,10 @@ public class AnnotationApplicationContext implements ApplicationContext {
         this.container.setApplicationContext(this);
         this.config = new Config();
         this.container.registerExternalInstance(Environment.class, environment);
+        registerDefaultProcessors();
         ModuleInitializer.initializeModules(configClass, container);
         new ConfigProcessor(container, configClass);
         container.initialize();
-        registerDefaultProcessors();
     }
 
     public AnnotationApplicationContext() {
@@ -114,6 +117,12 @@ public class AnnotationApplicationContext implements ApplicationContext {
 
     private void registerDefaultProcessors() {
         getLightContainer().addPostProcessor(new ApplicationContextAwareProcessor(this));
+        getLightContainer().addPostProcessor(new ConfigurationPropertiesProcessor(environment));
         getLightContainer().addPostProcessor(new PostConstructProcessor());
+
+        ApplicationEventMulticaster multicaster = new ApplicationEventMulticaster();
+        getLightContainer().registerExternalInstance(ApplicationEventPublisher.class, multicaster);
+        getLightContainer().registerExternalInstance(ApplicationEventMulticaster.class, multicaster);
+        getLightContainer().addPostProcessor(new EventListenerProcessor(multicaster));
     }
 }

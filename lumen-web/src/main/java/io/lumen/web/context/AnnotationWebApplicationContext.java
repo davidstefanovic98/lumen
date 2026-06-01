@@ -4,7 +4,6 @@ import io.lumen.context.AnnotationApplicationContext;
 import io.lumen.core.LumenInitializer;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
-import io.lumen.core.logging.StartupBanner;
 import io.lumen.web.DispatcherServlet;
 import io.lumen.web.RouteInvoker;
 import io.lumen.web.RouteRegistry;
@@ -16,8 +15,8 @@ import io.lumen.web.resource.ResourceProvider;
 import io.lumen.web.resource.StaticResourceResultHandler;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterRegistration;
-import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContainerInitializer;
+import jakarta.servlet.ServletContext;
 
 import java.net.BindException;
 import java.util.EnumSet;
@@ -60,7 +59,6 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
                 context.getEnvironment().getProperty("lumen.shutdown.timeout-seconds", "30"));
 
         try {
-            StartupBanner.print(logger);
             webServer = new WebServer(resolvedPort);
             tryRegisterWebSocketSCI(webServer);
             webServer.addSCI(new LumenServletContainerInitializer(this));

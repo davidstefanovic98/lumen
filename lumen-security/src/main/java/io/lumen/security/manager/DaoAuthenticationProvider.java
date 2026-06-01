@@ -1,6 +1,5 @@
 package io.lumen.security.manager;
 
-import io.lumen.context.annotation.Component;
 import io.lumen.context.annotation.Lazy;
 import io.lumen.security.authentication.Authentication;
 import io.lumen.security.authentication.UserDetails;

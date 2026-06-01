@@ -26,19 +26,19 @@ public class RouteRegistry {
                                 + existing.route.getController().getClass().getSimpleName() + "#" + existing.route.getMethod().getName()
                 );
             }
-            if (newMatcher.couldShadowLiteral(existing.matcher)) {
-                logger.warn(String.format(
-                        "Route [%s %s] in controller %s#%s may shadow existing route [%s %s] in controller %s#%s%n",
-                        route.getHttpMethod(),
-                        route.getPathPattern(),
-                        route.getController().getClass().getSimpleName(),
-                        route.getMethod().getName(),
-                        existing.route.getHttpMethod(),
-                        existing.route.getPathPattern(),
-                        existing.route.getController().getClass().getSimpleName(),
-                        existing.route.getMethod().getName()
-                ));
-            }
+//            if (newMatcher.couldShadowLiteral(existing.matcher)) {
+//                logger.debug(String.format(
+//                        "Route [%s %s] in controller %s#%s may shadow existing route [%s %s] in controller %s#%s%n",
+//                        route.getHttpMethod(),
+//                        route.getPathPattern(),
+//                        route.getController().getClass().getSimpleName(),
+//                        route.getMethod().getName(),
+//                        existing.route.getHttpMethod(),
+//                        existing.route.getPathPattern(),
+//                        existing.route.getController().getClass().getSimpleName(),
+//                        existing.route.getMethod().getName()
+//                ));
+//            }
         }
         routes.add(new RouteEntry(route, newMatcher));
         // Sort routes by specificity (more specific routes first), to ensure correct matching order

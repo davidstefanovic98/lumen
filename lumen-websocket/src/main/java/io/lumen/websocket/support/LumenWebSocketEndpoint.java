@@ -28,7 +28,9 @@ public class LumenWebSocketEndpoint extends jakarta.websocket.Endpoint {
     public void onOpen(Session session, EndpointConfig config) {
         WebSocketSession ws = new WebSocketSessionAdapter(session);
 
-        session.addMessageHandler((MessageHandler.Whole<String>) message -> {
+        // Use the explicit Class<T> overload so Tomcat doesn't need to infer
+        // the generic type via reflection (cast lambdas lose <T> at runtime).
+        session.addMessageHandler(String.class, message -> {
             try {
                 handler.handleTextMessage(ws, new TextMessage(message));
             } catch (Exception e) {
@@ -37,7 +39,7 @@ public class LumenWebSocketEndpoint extends jakarta.websocket.Endpoint {
             }
         });
 
-        session.addMessageHandler((MessageHandler.Whole<ByteBuffer>) data -> {
+        session.addMessageHandler(ByteBuffer.class, data -> {
             try {
                 handler.handleBinaryMessage(ws, new BinaryMessage(data.array()));
             } catch (Exception e) {

@@ -34,6 +34,7 @@ public class WebLumenInitializer implements LumenInitializer {
     public void onStartup() {
         argumentResolver.addResolver(new PathVariableArgumentResolver());
         argumentResolver.addResolver(new RequestParamArgumentResolver());
+        argumentResolver.addResolver(new RequestHeaderArgumentResolver());
 
         RequestBodyArgumentResolver bodyResolver = new RequestBodyArgumentResolver(converterRegistry);
         wireValidator(bodyResolver);

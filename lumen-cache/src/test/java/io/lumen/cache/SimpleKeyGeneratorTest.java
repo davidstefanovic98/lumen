@@ -63,11 +63,19 @@ class SimpleKeyGeneratorTest {
     }
 
     @Test
-    void resolveKeyUnknownParamFallsBackToExpression() throws Exception {
+    void resolveKeyUnknownParam_returnsNull() throws Exception {
         Method m = Subject.class.getMethod("oneArg", Long.class);
-        // "#unknown" is not a param name — treated as literal
+        // "#unknown" is not a param name — Gleam returns null for unset variables
         Object key = gen.resolveKey("#unknown", m, null, new Object[]{7L});
-        assertEquals("#unknown", key);
+        assertNull(key);
+    }
+
+    @Test
+    void resolveKeyPropertyChain() throws Exception {
+        Method m = Subject.class.getMethod("oneArg", Long.class);
+        record Product(Long id) {}
+        Object key = gen.resolveKey("#id", m, null, new Object[]{42L});
+        assertEquals(42L, key);
     }
 
     // helper class compiled with -parameters so param names are available

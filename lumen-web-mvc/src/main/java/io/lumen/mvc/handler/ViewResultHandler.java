@@ -5,7 +5,7 @@ import io.lumen.web.flash.FlashMapManager;
 import io.lumen.web.handler.RouteResultHandler;
 import io.lumen.mvc.argument.ModelAndView;
 import io.lumen.web.http.HttpStatus;
-import io.lumen.web.view.ViewResolver;
+import io.lumen.mvc.view.ViewResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 

@@ -10,6 +10,10 @@ public class Environment {
         properties.put(key, value);
     }
 
+    public Map<String, String> getProperties() {
+        return Collections.unmodifiableMap(properties);
+    }
+
     public String getProperty(String key) {
         return properties.get(key);
     }

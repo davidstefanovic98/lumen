@@ -1,6 +1,5 @@
 package io.lumen.web;
 
-import io.lumen.context.annotation.Component;
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
 import io.lumen.web.handler.RestResultHandler;
 import io.lumen.web.handler.RouteResultHandler;

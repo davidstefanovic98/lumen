@@ -13,6 +13,14 @@
     <!-- Hibernate internals — connection pool warnings are expected on startup -->
     <logger name="org.hibernate" level="WARN"/>
 
+    <!-- Jakarta Mail / Angus Mail internals -->
+    <logger name="jakarta.mail" level="WARN"/>
+    <logger name="com.sun.mail" level="WARN"/>
+    <logger name="org.eclipse.angus" level="WARN"/>
+
+    <!-- HikariCP — pool lifecycle at WARN only -->
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+
     <!-- Lumen framework -->
     <logger name="io.lumen" level="INFO"/>
 

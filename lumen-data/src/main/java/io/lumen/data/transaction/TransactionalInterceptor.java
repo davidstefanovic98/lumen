@@ -36,7 +36,7 @@ public class TransactionalInterceptor implements MethodInterceptor {
 
     private Object runInTransaction(Method method, Object[] args, Transactional tx) throws Throwable {
         LumenTransactionManager tm = transactionManager();
-        TransactionStatus status = tm.getTransaction(tx.readOnly());
+        TransactionStatus status = tm.getTransaction(tx);
         try {
             Object result = method.invoke(target, args);
             if (status.isRollbackOnly()) tm.rollback(status);

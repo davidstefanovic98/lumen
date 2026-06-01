@@ -189,6 +189,13 @@ public class LightContainer {
         return Collections.unmodifiableMap(lights);
     }
 
+    public <T> List<T> getLights(Class<T> type) {
+        return lights.values().stream()
+                .filter(li -> li.getInstance() != null && type.isAssignableFrom(li.getInstance().getClass()))
+                .map(li -> type.cast(li.getInstance()))
+                .toList();
+    }
+
     public void addPostProcessor(LightProcessor processor) {
         instantiator.addPostProcessor(processor);
     }

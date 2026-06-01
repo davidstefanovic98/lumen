@@ -10,22 +10,11 @@
     </parent>
 
     <artifactId>lumen-boot-starter-thymeleaf</artifactId>
-    
 
     <dependencies>
         <dependency>
             <groupId>io.lumen</groupId>
-            <artifactId>lumen-boot-starter-web</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>io.lumen</groupId>
-            <artifactId>lumen-web-mvc</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>io.lumen</groupId>
-            <artifactId>lumen-web-thymeleaf</artifactId>
+            <artifactId>lumen-boot-thymeleaf</artifactId>
             <version>0.1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>

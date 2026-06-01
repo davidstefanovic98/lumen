@@ -119,8 +119,10 @@ public class DefaultValidator implements Validator {
     }
 
     private int length(Object value) {
-        if (value instanceof String s) return s.length();
-        if (value instanceof Collection<?> c) return c.size();
+        if (value instanceof String s)
+            return s.length();
+        if (value instanceof Collection<?> c)
+            return c.size();
         return 0;
     }
 

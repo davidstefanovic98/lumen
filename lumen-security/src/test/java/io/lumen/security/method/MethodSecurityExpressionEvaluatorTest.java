@@ -112,11 +112,13 @@ class MethodSecurityExpressionEvaluatorTest {
                 () -> MethodSecurityExpressionEvaluator.check("hasAnyRole('ADMIN', 'MANAGER')"));
     }
 
-    // --- unsupported expression ---
+    // --- unknown function → access denied ---
 
     @Test
-    void unsupportedExpression_throwsUnsupportedOperationException() {
-        assertThrows(UnsupportedOperationException.class,
-                () -> MethodSecurityExpressionEvaluator.check("badExpression()"));
+    void unknownFunction_throwsAccessDeniedException() {
+        // Gleam parses the expression but evaluation fails with an unknown function,
+        // which the evaluator maps to AccessDeniedException.
+        assertThrows(AccessDeniedException.class,
+                () -> MethodSecurityExpressionEvaluator.check("unknownFunction()"));
     }
 }

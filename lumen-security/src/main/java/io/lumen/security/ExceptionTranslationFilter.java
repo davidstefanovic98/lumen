@@ -40,7 +40,7 @@ public class ExceptionTranslationFilter extends OncePerRequestFilter {
     }
 
     private void handleAccessDenied(HttpServletRequest request, HttpServletResponse response,
-                                    AccessDeniedException e) throws IOException {
+                                    AccessDeniedException ignored) throws IOException {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isApi = isApiRequest(request);
 
@@ -52,7 +52,7 @@ public class ExceptionTranslationFilter extends OncePerRequestFilter {
             }
         } else {
             if (isApi) {
-                sendJson(response, HttpStatus.FORBIDDEN.value(), "Forbidden", e.getMessage());
+                sendJson(response, HttpStatus.FORBIDDEN.value(), "Forbidden", "Access denied");
             } else {
                 renderAccessDeniedPage(response);
             }

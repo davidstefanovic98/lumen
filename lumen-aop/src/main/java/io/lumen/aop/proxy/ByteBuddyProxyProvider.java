@@ -8,6 +8,8 @@ import io.lumen.core.proxy.ProxyProvider;
 import io.lumen.core.interceptor.MethodInvocation;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+
+import java.lang.invoke.MethodHandles;
 import net.bytebuddy.implementation.InvocationHandlerAdapter;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -54,7 +56,7 @@ public class ByteBuddyProxyProvider implements ProxyProvider {
                     .method(ElementMatchers.isAnnotatedWith(Light.class))
                     .intercept(MethodDelegation.to(new ByteBuddyConfigInterceptor(container)))
                     .make()
-                    .load(configClass.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+                    .load(configClass.getClassLoader(), ClassLoadingStrategy.UsingLookup.of(MethodHandles.privateLookupIn(configClass, MethodHandles.lookup())))
                     .getLoaded()
                     .getDeclaredConstructor()
                     .newInstance();
@@ -104,7 +106,7 @@ public class ByteBuddyProxyProvider implements ProxyProvider {
                         return invocation.proceed();
                     }))
                     .make()
-                    .load(type.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+                    .load(type.getClassLoader(), ClassLoadingStrategy.UsingLookup.of(MethodHandles.privateLookupIn(type, MethodHandles.lookup())))
                     .getLoaded();
             return allocate(proxyClass);
         } catch (Exception e) {
@@ -119,7 +121,7 @@ public class ByteBuddyProxyProvider implements ProxyProvider {
                     .method(ElementMatchers.any())
                     .intercept(MethodDelegation.to(interceptor))
                     .make()
-                    .load(type.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+                    .load(type.getClassLoader(), ClassLoadingStrategy.UsingLookup.of(MethodHandles.privateLookupIn(type, MethodHandles.lookup())))
                     .getLoaded();
             return allocate(proxyClass);
         } catch (Exception e) {

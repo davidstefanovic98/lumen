@@ -1,5 +1,8 @@
 package io.lumen.cache;
 
+import io.lumen.gleam.Gleam;
+import io.lumen.gleam.StandardEvaluationContext;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
@@ -16,21 +19,26 @@ public class SimpleKeyGenerator implements CacheKeyGenerator {
     }
 
     /**
-     * Resolves a key expression like "#id" or "#name" against method parameters.
-     * Falls back to generate() when the expression is blank or unrecognized.
+     * Resolves a cache key expression against the method invocation.
+     * <ul>
+     *   <li>Blank → {@link #generate(Object, Method, Object...)}</li>
+     *   <li>Starts with {@code #} → evaluated as a Gleam expression with all
+     *       parameters bound as variables ({@code #paramName}) and the target
+     *       bean as the root object. Supports chains: {@code #product.id}.</li>
+     *   <li>Anything else → used as a literal string key.</li>
+     * </ul>
      */
     public Object resolveKey(String expression, Method method, Object target, Object[] args) {
         if (expression == null || expression.isBlank()) {
             return generate(target, method, args);
         }
         if (expression.startsWith("#")) {
-            String paramName = expression.substring(1);
+            StandardEvaluationContext ctx = new StandardEvaluationContext(target);
             Parameter[] params = method.getParameters();
-            for (int i = 0; i < params.length; i++) {
-                if (params[i].getName().equals(paramName)) {
-                    return args[i];
-                }
+            for (int i = 0; i < params.length && i < args.length; i++) {
+                ctx.setVariable(params[i].getName(), args[i]);
             }
+            return Gleam.evaluate(expression, ctx);
         }
         return expression;
     }

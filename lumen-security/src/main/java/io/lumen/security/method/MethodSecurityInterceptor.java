@@ -13,13 +13,15 @@ public class MethodSecurityInterceptor implements MethodInterceptor {
     public Object invoke(MethodInvocation invocation) throws Throwable {
         Method method = invocation.getMethod();
 
+        Object[] args = invocation.getArguments();
+
         PreAuthorize pre = resolveAnnotation(method, PreAuthorize.class);
-        if (pre != null) MethodSecurityExpressionEvaluator.check(pre.value());
+        if (pre != null) MethodSecurityExpressionEvaluator.checkPre(pre.value(), method, args);
 
         Object result = invocation.proceed();
 
         PostAuthorize post = resolveAnnotation(method, PostAuthorize.class);
-        if (post != null) MethodSecurityExpressionEvaluator.check(post.value());
+        if (post != null) MethodSecurityExpressionEvaluator.checkPost(post.value(), method, args, result);
 
         return result;
     }

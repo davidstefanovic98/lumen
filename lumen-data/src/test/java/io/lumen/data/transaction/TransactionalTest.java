@@ -4,6 +4,7 @@ import io.lumen.core.component.LightContainer;
 import io.lumen.core.context.DefaultApplicationContext;
 import io.lumen.core.interceptor.MethodInvocation;
 import io.lumen.data.annotation.Transactional;
+import io.lumen.data.transaction.*;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.Metamodel;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -158,7 +160,8 @@ class TransactionalTest {
         FakeTransactionManager(FakeEntityManager em) { this.em = em; }
 
         @Override
-        public TransactionStatus getTransaction(boolean readOnly) {
+        public TransactionStatus getTransaction(io.lumen.data.annotation.Transactional annotation) {
+            boolean readOnly = annotation.readOnly();
             boolean isNew = !em.getTransaction().isActive();
             if (isNew) em.getTransaction().begin();
             EntityManagerHolder.set(em);
@@ -179,6 +182,33 @@ class TransactionalTest {
             if (em.getTransaction().isActive()) em.getTransaction().rollback();
             EntityManagerHolder.clear();
         }
+    }
+
+    // ── Propagation-specific test beans ──────────────────────────────────────
+
+    static class RequiresNewService {
+        @Transactional(propagation = Propagation.REQUIRES_NEW)
+        public String run() { return "new-tx"; }
+    }
+
+    static class SupportsService {
+        @Transactional(propagation = Propagation.SUPPORTS)
+        public String run() { return "supports"; }
+    }
+
+    static class MandatoryService {
+        @Transactional(propagation = Propagation.MANDATORY)
+        public String run() { return "mandatory"; }
+    }
+
+    static class NeverService {
+        @Transactional(propagation = Propagation.NEVER)
+        public String run() { return "never"; }
+    }
+
+    static class NotSupportedService {
+        @Transactional(propagation = Propagation.NOT_SUPPORTED)
+        public String run() { return "not-supported"; }
     }
 
     FakeEntityManager fakeEm;
@@ -332,6 +362,37 @@ class TransactionalTest {
         public String doWork() { return "done"; }
     }
 
+    // ── Fake EntityManagerFactory for JpaTransactionManager tests ─────────────
+
+    static EntityManagerFactory fakeEmf(List<FakeEntityManager> created) {
+        return (EntityManagerFactory) java.lang.reflect.Proxy.newProxyInstance(
+                EntityManagerFactory.class.getClassLoader(),
+                new Class[]{EntityManagerFactory.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "createEntityManager" -> {
+                        FakeEntityManager em = new FakeEntityManager();
+                        created.add(em);
+                        yield em;
+                    }
+                    case "isOpen" -> true;
+                    default -> throw new UnsupportedOperationException(method.getName());
+                }
+        );
+    }
+
+    // ── Annotation fixtures (one method per propagation type) ─────────────────
+
+    @Transactional(propagation = Propagation.REQUIRED)    static void _required()    {}
+    @Transactional(propagation = Propagation.REQUIRES_NEW)static void _requiresNew() {}
+    @Transactional(propagation = Propagation.SUPPORTS)    static void _supports()    {}
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)static void _notSupported(){}
+    @Transactional(propagation = Propagation.MANDATORY)   static void _mandatory()   {}
+    @Transactional(propagation = Propagation.NEVER)       static void _never()       {}
+
+    private static io.lumen.data.annotation.Transactional txOf(String name) throws Exception {
+        return TransactionalTest.class.getDeclaredMethod(name).getAnnotation(Transactional.class);
+    }
+
     static class ConcreteService {
         @Transactional
         public String run() { return "ran"; }
@@ -358,5 +419,121 @@ class TransactionalTest {
         fakeEm.tx.reset();
         svc.plain();
         assertEquals(0, fakeEm.tx.begins, "plain() should not start a transaction");
+    }
+
+    // ── JpaTransactionManager propagation tests ───────────────────────────────
+
+    @Test
+    void required_noActiveTx_beginsNewTransaction() throws Exception {
+        List<FakeEntityManager> created = new ArrayList<>();
+        JpaTransactionManager tm = new JpaTransactionManager(fakeEmf(created));
+
+        TransactionStatus status = tm.getTransaction(txOf("_required"));
+
+        assertTrue(status.isNewTransaction());
+        assertEquals(1, created.size());
+        assertTrue(created.getFirst().tx.active);
+    }
+
+    @Test
+    void required_activeTx_joinsExisting() throws Exception {
+        List<FakeEntityManager> created = new ArrayList<>();
+        JpaTransactionManager tm = new JpaTransactionManager(fakeEmf(created));
+
+        TransactionStatus outer = tm.getTransaction(txOf("_required"));
+        int emCountAfterOuter = created.size();
+
+        TransactionStatus inner = tm.getTransaction(txOf("_required"));
+
+        assertFalse(inner.isNewTransaction());
+        assertEquals(emCountAfterOuter, created.size(), "inner REQUIRED must not create a new EM");
+
+        tm.commit(outer);
+    }
+
+    @Test
+    void requiresNew_suspendsExistingAndStartsFresh() throws Exception {
+        List<FakeEntityManager> created = new ArrayList<>();
+        JpaTransactionManager tm = new JpaTransactionManager(fakeEmf(created));
+
+        TransactionStatus outer = tm.getTransaction(txOf("_required"));
+        FakeEntityManager outerEm = created.getFirst();
+
+        TransactionStatus inner = tm.getTransaction(txOf("_requiresNew"));
+
+        assertTrue(inner.isNewTransaction());
+        assertEquals(2, created.size(), "REQUIRES_NEW must create a second EM");
+        FakeEntityManager innerEm = created.get(1);
+        assertTrue(innerEm.tx.active, "inner TX must be active");
+
+        tm.commit(inner);
+        assertFalse(innerEm.tx.active);
+        assertEquals(outerEm, EntityManagerHolder.get(), "outer EM must be restored after REQUIRES_NEW commit");
+
+        tm.commit(outer);
+    }
+
+    @Test
+    void mandatory_withActiveTx_joins() throws Exception {
+        List<FakeEntityManager> created = new ArrayList<>();
+        JpaTransactionManager tm = new JpaTransactionManager(fakeEmf(created));
+
+        TransactionStatus outer = tm.getTransaction(txOf("_required"));
+        TransactionStatus inner = tm.getTransaction(txOf("_mandatory"));
+
+        assertFalse(inner.isNewTransaction());
+
+        tm.commit(outer);
+    }
+
+    @Test
+    void mandatory_noActiveTx_throws() throws Exception {
+        JpaTransactionManager tm = new JpaTransactionManager(fakeEmf(new ArrayList<>()));
+
+        assertThrows(IllegalTransactionStateException.class,
+                () -> tm.getTransaction(txOf("_mandatory")));
+    }
+
+    @Test
+    void never_withActiveTx_throws() throws Exception {
+        List<FakeEntityManager> created = new ArrayList<>();
+        JpaTransactionManager tm = new JpaTransactionManager(fakeEmf(created));
+
+        tm.getTransaction(txOf("_required"));
+
+        assertThrows(IllegalTransactionStateException.class,
+                () -> tm.getTransaction(txOf("_never")));
+
+        EntityManagerHolder.clear();
+    }
+
+    @Test
+    void never_noActiveTx_succeeds() throws Exception {
+        List<FakeEntityManager> created = new ArrayList<>();
+        JpaTransactionManager tm = new JpaTransactionManager(fakeEmf(created));
+
+        TransactionStatus status = tm.getTransaction(txOf("_never"));
+
+        assertFalse(status.isNewTransaction());
+        assertEquals(0, created.size(), "NEVER must not create an EM");
+    }
+
+    @Test
+    void notSupported_suspendsAndRestores() throws Exception {
+        List<FakeEntityManager> created = new ArrayList<>();
+        JpaTransactionManager tm = new JpaTransactionManager(fakeEmf(created));
+
+        TransactionStatus outer = tm.getTransaction(txOf("_required"));
+        FakeEntityManager outerEm = created.getFirst();
+
+        TransactionStatus inner = tm.getTransaction(txOf("_notSupported"));
+
+        assertFalse(inner.isNewTransaction());
+        assertNull(EntityManagerHolder.get(), "NOT_SUPPORTED must clear the EM holder");
+
+        tm.commit(inner);
+        assertEquals(outerEm, EntityManagerHolder.get(), "outer EM must be restored after NOT_SUPPORTED");
+
+        tm.commit(outer);
     }
 }

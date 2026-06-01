@@ -16,6 +16,7 @@ import io.lumen.web.context.WebLumenInitializer;
 import io.lumen.web.cors.CorsConfiguration;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
 import io.lumen.web.filter.CorsFilter;
+import io.lumen.web.filter.LoggingFilter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.resource.ResourceProvider;
 
@@ -49,6 +50,7 @@ public class LumenWebModule implements LumenModule {
             }
         });
         container.registerExternalInstance(LightContainer.class, container);
+        container.registerExternalInstance(LoggingFilter.class, new LoggingFilter());
         container.register(WebLumenInitializer.class);
 
         // When the user provides a CorsConfiguration bean, auto-create the CorsFilter.
