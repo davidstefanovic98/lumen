@@ -165,14 +165,14 @@ public class ProductController {
 
 ## 6. Service layer and dependency injection
 
-`@Light` marks a class as a managed bean. Dependencies are injected via constructor injection (preferred) or `@Inject`.
+`@Service` (or `@Component`) marks a class as a light. Dependencies are injected via constructor injection (preferred) or `@Inject`. (`@Light` is a method-level annotation used only for factory methods inside `@Configuration` classes — see the `SecurityConfig` example in section 10 — not a class-level stereotype.)
 
 ```java
 package com.example.service;
 
-import io.lumen.core.annotation.Light;
+import io.lumen.context.annotation.Service;
 
-@Light
+@Service
 public class ProductService {
 
     private final ProductRepository repository;
@@ -346,7 +346,7 @@ Add the security starter:
 Implement `UserDetailsService` to load users:
 
 ```java
-@Light
+@Service
 public class MyUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) {
@@ -409,7 +409,7 @@ public Product update(Product product) { ... }
 public void delete(Long id) { ... }
 ```
 
-The default cache is in-memory (`ConcurrentHashMap`). Register a custom `CacheManager` bean to use Redis or another backend.
+The default cache is in-memory (`ConcurrentHashMap`). Register a custom `CacheManager` light to use Redis or another backend.
 
 ---
 

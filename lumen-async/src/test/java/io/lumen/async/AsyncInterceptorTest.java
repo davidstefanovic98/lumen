@@ -2,16 +2,19 @@ package io.lumen.async;
 
 import io.lumen.async.annotation.Async;
 import io.lumen.core.proxy.ProxyFactory;
+import io.lumen.core.task.TaskDecorator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -19,6 +22,7 @@ class AsyncInterceptorTest {
 
     ExecutorService executor;
     AsyncUncaughtExceptionHandler noopHandler = (ex, method, args) -> {};
+    Supplier<List<TaskDecorator>> noDecorators = List::of;
 
     @BeforeEach void setUp()    { executor = Executors.newFixedThreadPool(2); }
     @AfterEach  void tearDown() { executor.shutdownNow(); }
@@ -51,7 +55,7 @@ class AsyncInterceptorTest {
 
     private WorkService proxy(WorkService delegate) {
         return ProxyFactory.createDelegatingProxy(WorkService.class, delegate,
-                List.of(new AsyncInterceptor(executor, noopHandler)));
+                List.of(new AsyncInterceptor(executor, noopHandler, noDecorators)));
     }
 
     // --- @Async void ---
@@ -115,7 +119,7 @@ class AsyncInterceptorTest {
 
         WorkService delegate = new WorkService();
         WorkService svc = ProxyFactory.createDelegatingProxy(WorkService.class, delegate,
-                List.of(new AsyncInterceptor(executor, handler)));
+                List.of(new AsyncInterceptor(executor, handler, noDecorators)));
 
         svc.throwingMethod();
         executor.shutdown();
@@ -146,7 +150,7 @@ class AsyncInterceptorTest {
     @Test
     void asyncProcessor_wrapsBeansWithAsyncMethods() {
         WorkService original = new WorkService();
-        AsyncProcessor processor = new AsyncProcessor(executor, noopHandler);
+        AsyncProcessor processor = new AsyncProcessor(executor, noopHandler, noDecorators);
         Object result = processor.afterInstantiation(null, original);
 
         assertNotSame(original, result, "Bean with @Async methods should be proxied");
@@ -156,8 +160,70 @@ class AsyncInterceptorTest {
     @Test
     void asyncProcessor_skipsBeansWithoutAsyncMethods() {
         Object plain = new Object() { public void doWork() {} };
-        AsyncProcessor processor = new AsyncProcessor(executor, noopHandler);
+        AsyncProcessor processor = new AsyncProcessor(executor, noopHandler, noDecorators);
         Object result = processor.afterInstantiation(null, plain);
         assertSame(plain, result, "Bean without @Async methods should not be proxied");
+    }
+
+    // --- TaskDecorator propagation ---
+
+    /** A ThreadLocal-backed context to prove decorators capture caller state and restore it on the worker. */
+    static final ThreadLocal<String> CONTEXT = new ThreadLocal<>();
+
+    static class ContextService {
+        volatile String seenOnWorker;
+        final CountDownLatch done = new CountDownLatch(1);
+
+        @Async
+        public void readContext() {
+            seenOnWorker = CONTEXT.get();
+            done.countDown();
+        }
+    }
+
+    @Test
+    void taskDecorator_propagatesCallerContextToWorkerThread() throws Exception {
+        // Decorator captures CONTEXT on the calling thread, restores it on the worker thread.
+        TaskDecorator contextPropagating = runnable -> {
+            String captured = CONTEXT.get();
+            return () -> {
+                CONTEXT.set(captured);
+                try { runnable.run(); }
+                finally { CONTEXT.remove(); }
+            };
+        };
+
+        ContextService delegate = new ContextService();
+        ContextService svc = ProxyFactory.createDelegatingProxy(ContextService.class, delegate,
+                List.of(new AsyncInterceptor(executor, noopHandler, () -> List.of(contextPropagating))));
+
+        CONTEXT.set("caller-value");
+        try {
+            svc.readContext();
+        } finally {
+            CONTEXT.remove();
+        }
+
+        assertTrue(delegate.done.await(2, TimeUnit.SECONDS), "async task did not complete");
+        assertEquals("caller-value", delegate.seenOnWorker,
+                "decorator should propagate the caller's ThreadLocal value to the worker thread");
+    }
+
+    @Test
+    void withoutDecorator_callerContextIsNotVisibleOnWorker() throws Exception {
+        ContextService delegate = new ContextService();
+        ContextService svc = ProxyFactory.createDelegatingProxy(ContextService.class, delegate,
+                List.of(new AsyncInterceptor(executor, noopHandler, noDecorators)));
+
+        CONTEXT.set("caller-value");
+        try {
+            svc.readContext();
+        } finally {
+            CONTEXT.remove();
+        }
+
+        assertTrue(delegate.done.await(2, TimeUnit.SECONDS), "async task did not complete");
+        assertNull(delegate.seenOnWorker,
+                "without a decorator, the worker thread must not see the caller's ThreadLocal");
     }
 }

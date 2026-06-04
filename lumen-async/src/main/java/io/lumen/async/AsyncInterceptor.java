@@ -5,10 +5,13 @@ import io.lumen.core.interceptor.MethodInterceptor;
 import io.lumen.core.interceptor.MethodInvocation;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
+import io.lumen.core.task.TaskDecorator;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 public class AsyncInterceptor implements MethodInterceptor {
 
@@ -16,10 +19,14 @@ public class AsyncInterceptor implements MethodInterceptor {
 
     private final ExecutorService executor;
     private final AsyncUncaughtExceptionHandler exceptionHandler;
+    private final Supplier<List<TaskDecorator>> decorators;
 
-    public AsyncInterceptor(ExecutorService executor, AsyncUncaughtExceptionHandler exceptionHandler) {
+    public AsyncInterceptor(ExecutorService executor,
+                            AsyncUncaughtExceptionHandler exceptionHandler,
+                            Supplier<List<TaskDecorator>> decorators) {
         this.executor = executor;
         this.exceptionHandler = exceptionHandler;
+        this.decorators = decorators;
     }
 
     @Override
@@ -34,7 +41,7 @@ public class AsyncInterceptor implements MethodInterceptor {
 
         if (returnsFuture) {
             CompletableFuture<Object> future = new CompletableFuture<>();
-            executor.submit(() -> {
+            Runnable task = () -> {
                 try {
                     Object result = invocation.proceed();
                     // If the method itself returns a CompletableFuture, unwrap it so the
@@ -50,17 +57,31 @@ public class AsyncInterceptor implements MethodInterceptor {
                 } catch (Throwable t) {
                     future.completeExceptionally(t);
                 }
-            });
+            };
+            executor.submit(decorate(task));
             return future;
         }
 
-        executor.submit(() -> {
+        Runnable task = () -> {
             try {
                 invocation.proceed();
             } catch (Throwable t) {
                 exceptionHandler.handleUncaughtException(t, method, args);
             }
-        });
+        };
+        executor.submit(decorate(task));
         return null;
+    }
+
+    /**
+     * Applies all registered {@link TaskDecorator}s to the task. Invoked on the calling
+     * thread so each decorator can snapshot thread-bound context before submission.
+     */
+    private Runnable decorate(Runnable task) {
+        Runnable decorated = task;
+        for (TaskDecorator decorator : decorators.get()) {
+            decorated = decorator.decorate(decorated);
+        }
+        return decorated;
     }
 }

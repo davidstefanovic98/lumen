@@ -28,12 +28,11 @@
 
 ### `@Light`
 
-Marks a class as a managed bean (a *light*) in the IoC container, or marks a factory method inside a `@Configuration` class.
+Marks a **factory method** inside a `@Configuration` class. The method's return value is registered as a light in the container. This is Lumen's equivalent of Spring's `@Bean`.
+
+`@Light` is method-level only (`@Target(METHOD)`) — it cannot annotate a class. To register a class as a light, use `@Component` or `@Service`.
 
 ```java
-@Service
-public class UserService { ... }
-
 @Configuration
 public class AppConfig {
     @Light
@@ -45,7 +44,33 @@ public class AppConfig {
 
 | Attribute | Type | Default | Description |
 |---|---|---|---|
-| `value` | `String` | `""` | Optional bean name. Defaults to the simple class name with a lowercase first letter. |
+| `name` | `String` | `""` | Optional light name. Defaults to the method name. |
+| `profile` | `String` | `""` | Only register when this profile is active. |
+| `condition` | `String` | `""` | Only register when this conditional expression passes. |
+
+---
+
+### `@Component`
+
+Marks a **class** as a light. Discovered during component scan and instantiated by the container, with constructor dependencies resolved automatically.
+
+```java
+@Component
+public class TokenGenerator { ... }
+```
+
+`@Service` is a specialization of `@Component` (meta-annotated with it) carrying the same behaviour; use it to mark service-layer classes for readability.
+
+```java
+@Service
+public class UserService {
+    private final UserRepository repository;
+
+    public UserService(UserRepository repository) {  // injected
+        this.repository = repository;
+    }
+}
+```
 
 ---
 
@@ -89,7 +114,7 @@ Type coercion is performed automatically for `int`, `long`, `boolean`, and `Stri
 
 ### `@Qualifier`
 
-Disambiguates injection when multiple beans of the same type are registered.
+Disambiguates injection when multiple lights of the same type are registered.
 
 ```java
 @Inject
@@ -101,7 +126,7 @@ private DataSource dataSource;
 
 ### `@Primary`
 
-Marks a bean as the preferred candidate when multiple beans of the same type exist and no `@Qualifier` is specified.
+Marks a light as the preferred candidate when multiple lights of the same type exist and no `@Qualifier` is specified.
 
 ```java
 @Component
@@ -113,7 +138,7 @@ public class DefaultCacheManager implements CacheManager { ... }
 
 ### `@PostConstruct`
 
-Marks a method to be called after the bean is fully initialised (all dependencies injected).
+Marks a method to be called after the light is fully initialised (all dependencies injected).
 
 ```java
 @Component
@@ -148,13 +173,13 @@ Defers instantiation of a dependency until the first method call on the injected
 private HeavyService heavy;
 ```
 
-A ByteBuddy proxy is injected at startup; the real bean is created on first use.
+A ByteBuddy proxy is injected at startup; the real light is created on first use.
 
 ---
 
 ### `@Scope`
 
-Overrides the default singleton scope for a bean.
+Overrides the default singleton scope for a light.
 
 ```java
 @Component
@@ -168,10 +193,10 @@ public class RequestContext { ... }
 
 ### `@Profile`
 
-Restricts a bean to specific active profiles.
+Restricts a light to specific active profiles.
 
 ```java
-@Light
+@Component
 @Profile("dev")
 public class MockPaymentGateway implements PaymentGateway { ... }
 ```
@@ -184,7 +209,7 @@ Activate a profile with `lumen.profiles.active=dev` in `application.properties`.
 
 ### `@Configuration`
 
-Marks a class as a source of bean definitions. Methods annotated with `@Light` inside a `@Configuration` class are treated as factory methods. Repeated calls to the same factory method return the cached instance (implemented via a ByteBuddy subclass proxy).
+Marks a class as a source of light definitions. Methods annotated with `@Light` inside a `@Configuration` class are treated as factory methods. Repeated calls to the same factory method return the cached instance (implemented via a ByteBuddy subclass proxy).
 
 ```java
 @Configuration
@@ -200,7 +225,7 @@ public class SecurityConfig {
 
 ### `@ComponentScan`
 
-Triggers a classpath scan for classes annotated with `@Light`, `@Controller`, `@RestController`, `@Configuration`, and similar stereotype annotations.
+Triggers a classpath scan for classes annotated with `@Component`, `@Service`, `@Controller`, `@RestController`, `@Configuration`, and similar stereotype annotations.
 
 ```java
 @Configuration
@@ -218,10 +243,10 @@ public class AppConfig { }
 
 ### `@ConditionalOnProperty`
 
-Registers the bean only when the specified property has the given value.
+Registers the light only when the specified property has the given value.
 
 ```java
-@Light
+@Component
 @ConditionalOnProperty(name = "lumen.mail.host", havingValue = "smtp.gmail.com")
 public class GmailHealthChecker { ... }
 ```
@@ -235,10 +260,10 @@ public class GmailHealthChecker { ... }
 
 ### `@ConditionalOnClass`
 
-Registers the bean only when the specified class is present on the classpath.
+Registers the light only when the specified class is present on the classpath.
 
 ```java
-@Light
+@Component
 @ConditionalOnClass("com.zaxxer.hikari.HikariDataSource")
 public class HikariPoolMetrics { ... }
 ```
@@ -247,10 +272,10 @@ public class HikariPoolMetrics { ... }
 
 ### `@ConditionalOnLight`
 
-Registers the bean only when another bean of the specified type is present in the container.
+Registers the light only when another light of the specified type is present in the container.
 
 ```java
-@Light
+@Component
 @ConditionalOnLight(Validator.class)
 public class ValidatingService { ... }
 ```
@@ -477,7 +502,7 @@ public UploadResult upload(@RequestPart MultipartFile file) { ... }
 
 ### `@PreAuthorize`
 
-Evaluates a security expression before the method is invoked. Throws `AccessDeniedException` if the expression evaluates to `false`.
+Evaluates a security expression before the method is invoked. Throws `AccessDeniedException` if the expression evaluates to `false`. Expressions are evaluated by the **Gleam** engine (`lumen-gleam`).
 
 ```java
 @PreAuthorize("hasRole('ADMIN')")
@@ -485,31 +510,44 @@ public void deleteUser(Long id) { ... }
 
 @PreAuthorize("isAuthenticated()")
 public Profile getMyProfile() { ... }
+
+// Boolean operators and parameter binding
+@PreAuthorize("hasRole('ADMIN') || #userId == #authentication.name")
+public Profile getProfile(String userId) { ... }
 ```
 
-**Supported expressions:**
+**Functions:**
 
 | Expression | Description |
 |---|---|
-| `hasRole('ROLE')` | Current user has the given role. |
+| `hasRole('ADMIN')` | Current user has the given role (`ROLE_` prefix added automatically). |
 | `hasAnyRole('R1', 'R2')` | Current user has at least one of the given roles. |
+| `hasAuthority('ROLE_ADMIN')` | Current user has the exact authority string (no prefix added). |
+| `hasAnyAuthority('A', 'B')` | Current user has at least one of the exact authorities. |
 | `isAuthenticated()` | User is logged in (non-anonymous). |
 | `isAnonymous()` | User is not authenticated. |
 | `permitAll()` | Always allows. |
 | `denyAll()` | Always denies. |
 
+**Variables:**
+
+| Variable | Description |
+|---|---|
+| `#authentication` | The current `Authentication`; supports property navigation, e.g. `#authentication.name`. |
+| `#paramName` | A method parameter by its declared name (requires the `-parameters` compiler flag). |
+
+**Operators:** Gleam supports `&&`, `||`, `!`, `==`, `!=`, `<`, `>`, `<=`, `>=`, and property/method chaining.
+
 ---
 
 ### `@PostAuthorize`
 
-Evaluates a security expression after the method returns. Useful for verifying the return value belongs to the current user.
+Evaluates a security expression after the method returns. Useful for verifying the returned object belongs to the current user. Accepts the same functions, variables, and operators as `@PreAuthorize`, plus `#returnObject` — the value returned by the method.
 
 ```java
-@PostAuthorize("isAuthenticated()")
+@PostAuthorize("#returnObject.ownerId == #authentication.name")
 public Order getOrder(Long id) { ... }
 ```
-
-Accepts the same expressions as `@PreAuthorize`.
 
 ---
 
@@ -520,7 +558,7 @@ Accepts the same expressions as `@PreAuthorize`.
 Wraps the method (or all public methods of the class) in a database transaction. A proxy is created by `TransactionalProcessor` using `JpaTransactionManager`.
 
 ```java
-@Light
+@Service
 public class UserService {
     @Transactional
     public void transferFunds(Long fromId, Long toId, BigDecimal amount) { ... }
@@ -642,7 +680,7 @@ public void fireAndForget(String event) {
 |---|---|---|---|
 | `value` | `String` | `"default"` | Executor name (currently single pool). |
 
-Void methods that throw exceptions are handled by `AsyncUncaughtExceptionHandler`. The default implementation logs the exception. Register a custom handler as a bean to override.
+Void methods that throw exceptions are handled by `AsyncUncaughtExceptionHandler`. The default implementation logs the exception. Register a custom handler as a light to override.
 
 ---
 
@@ -813,7 +851,7 @@ Register in `META-INF/services/io.lumen.core.LumenModule`.
 
 ### `LightProcessor`
 
-Post-processing hook that runs after each bean is instantiated.
+Post-processing hook that runs after each light is instantiated.
 
 ```java
 public class MyProcessor implements LightProcessor {
@@ -841,16 +879,16 @@ public class MyInitializer implements LumenInitializer {
 }
 ```
 
-Register as a bean (`container.register(MyInitializer.class)`).
+Register as a light (`container.register(MyInitializer.class)`).
 
 ---
 
 ### `ViewResolver`
 
-Interface for MVC view rendering. Implement and register as a bean to add a custom template engine.
+Interface for MVC view rendering. Implement and register as a light to add a custom template engine.
 
 ```java
-@Light
+@Component
 public class MustacheViewResolver implements ViewResolver {
     @Override
     public void resolve(String viewName, Map<String, Object> model,
@@ -864,10 +902,10 @@ public class MustacheViewResolver implements ViewResolver {
 
 ### `CacheManager`
 
-SPI for custom cache backends. Register a `@Light` bean of this type to replace the default in-memory implementation.
+SPI for custom cache backends. Register a `@Component` of this type (a light) to replace the default in-memory implementation.
 
 ```java
-@Light
+@Component
 public class RedisCacheManager implements CacheManager {
     @Override
     public Cache getCache(String name) { ... }
@@ -1048,7 +1086,7 @@ public User create(CreateUserRequest req) {
 Marks a method as an event listener. The method parameter type determines which event type it handles.
 
 ```java
-@Light
+@Component
 public class NotificationService {
     @EventListener
     public void onUserCreated(UserCreatedEvent event) {
@@ -1139,8 +1177,8 @@ All properties are loaded from `application.properties` on the classpath. Profil
 
 | Exception | Thrown when |
 |---|---|
-| `NoLightFoundException` | No bean of the requested type is registered. |
-| `AmbiguousLightException` | Multiple beans of the same type exist and no `@Qualifier` or `@Primary` resolves the ambiguity. |
+| `NoLightFoundException` | No light of the requested type is registered. |
+| `AmbiguousLightException` | Multiple lights of the same type exist and no `@Qualifier` or `@Primary` resolves the ambiguity. |
 | `CircularDependencyException` | A circular dependency is detected during resolution. |
 | `LightInitializationException` | A `@PostConstruct` method throws an exception. |
 | `LightInstantiationException` | Reflection-based instantiation fails. |

@@ -32,7 +32,7 @@ public class ActuatorController implements ApplicationContextAware {
     @GetMapping("/actuator")
     public Map<String, Object> index() {
         Map<String, Object> links = new LinkedHashMap<>();
-        for (String endpoint : List.of("health", "info", "env", "beans")) {
+        for (String endpoint : List.of("health", "info", "env", "lights")) {
             String path = basePath() + "/" + endpoint;
             links.put(endpoint, Map.of("href", path));
         }

@@ -45,7 +45,7 @@ The framework is implemented entirely from scratch against Java 25 and Jakarta E
 
 ## 3. Boot-First Architecture
 
-Lumen is a **boot-first** framework. This means autoconfiguration is not optional — every internal module registers its beans via a `LumenModule` implementation, which is discovered at startup through the Java `ServiceLoader` mechanism.
+Lumen is a **boot-first** framework. This means autoconfiguration is not optional — every internal module registers its lights via a `LumenModule` implementation, which is discovered at startup through the Java `ServiceLoader` mechanism.
 
 ### What "boot-first" means in practice
 
@@ -67,7 +67,7 @@ Users never import internal modules (`lumen-core`, `lumen-web`, etc.) directly. 
 </dependency>
 ```
 
-The `lumen-boot` module is the **entry point for every application**. It loads the property files and provides `LumenApplication.run()`. Without it, no other module can initialise — the `Environment` bean would be absent and property-driven configuration would fail.
+The `lumen-boot` module is the **entry point for every application**. It loads the property files and provides `LumenApplication.run()`. Without it, no other module can initialise — the `Environment` light would be absent and property-driven configuration would fail.
 
 ### LumenModule SPI — the autoconfiguration mechanism
 
@@ -79,7 +79,7 @@ public interface LumenModule {
 }
 ```
 
-Modules are sorted by `@Order` before execution, which determines both the registration order of beans and the wrapping order of proxies.
+Modules are sorted by `@Order` before execution, which determines both the registration order of lights and the wrapping order of proxies.
 
 ---
 
@@ -94,6 +94,7 @@ These are implementation details. They must never appear as direct dependencies 
 | `lumen-core` | — | IoC container, DI, scopes, proxy SPI, event API |
 | `lumen-context` | — | Annotation config, component scan, conditional evaluation, event multicasting |
 | `lumen-aop` | — | ByteBuddy proxy provider (five proxy strategies) |
+| `lumen-gleam` | — | Gleam expression engine (library, no `LumenModule`); used by security and cache |
 | `lumen-boot` | `MIN_VALUE` | `application.properties` loading, `LumenApplication.run()` |
 | `lumen-security` | `0` | Filter chain, authentication, `@PreAuthorize`/`@PostAuthorize` |
 | `lumen-web` | `1` | `DispatcherServlet`, routing, argument resolution, CORS, exception handling |
@@ -104,7 +105,7 @@ These are implementation details. They must never appear as direct dependencies 
 | `lumen-mail` | `2` | `MailSender`, `JavaMailSender`, `MimeMessageHelper` |
 | `lumen-cache` | `-1` | `@Cacheable`/`@CacheEvict`/`@CachePut`, `CacheManager` SPI |
 | `lumen-data` | `MAX` | JPA repositories, derived queries, `@Transactional` |
-| `lumen-boot-thymeleaf` | `2` | `TemplateEngine` bean; conditional `ThymeleafViewResolver` |
+| `lumen-boot-thymeleaf` | `2` | `TemplateEngine` light; conditional `ThymeleafViewResolver` |
 
 ### User-facing starters
 
@@ -219,10 +220,10 @@ The IoC container is implemented in `lumen-core` and is the foundation of the en
 | Class | Role |
 |---|---|
 | `LightContainer` | Central registry. Stores `LightDefinition` entries keyed by type. |
-| `LightDefinition` | Blueprint for a bean: its class, origin (CLASS / INSTANCE / FACTORY), scope, and conditions. |
+| `LightDefinition` | Blueprint for a light: its class, origin (CLASS / INSTANCE / FACTORY), scope, and conditions. |
 | `DefaultLightCreator` | Orchestrates instantiation: runs the pre-processor chain, instantiates, runs the post-processor chain. |
 | `LightResolver` | Resolves dependencies by type; detects circular dependencies via an in-progress set. |
-| `LightInstance` | A live bean after instantiation, together with its resolved dependencies. |
+| `LightInstance` | A live light after instantiation, together with its resolved dependencies. |
 
 ### Dependency injection
 
@@ -234,7 +235,7 @@ Three injection modes are supported:
 
 All three modes are implemented as `InjectionStep` implementations and composed in `DefaultLightCreator`.
 
-### Bean scopes
+### Light scopes
 
 | Scope | Behaviour |
 |---|---|
@@ -245,7 +246,7 @@ All three modes are implemented as `InjectionStep` implementations and composed 
 
 ### Conditionals
 
-`@ConditionalOnProperty`, `@ConditionalOnClass`, and `@ConditionalOnLight` are evaluated at `container.initialize()` time via `ConditionalEvaluator`. Beans whose condition evaluates to `false` are skipped without error, enabling optional module integration.
+`@ConditionalOnProperty`, `@ConditionalOnClass`, and `@ConditionalOnLight` are evaluated at `container.initialize()` time via `ConditionalEvaluator`. Lights whose condition evaluates to `false` are skipped without error, enabling optional module integration.
 
 ### Lazy initialisation
 
@@ -274,7 +275,7 @@ sequenceDiagram
 
     loop For each LumenModule (by @Order)
         AAC->>Mods: module.init(container, basePackages)
-        Note over Mods: Registers beans, processors,<br/>external instances
+        Note over Mods: Registers lights, processors,<br/>external instances
     end
 
     AWA->>TC: new Tomcat(), configure connector
@@ -298,7 +299,7 @@ sequenceDiagram
 
 ### Module initialisation order
 
-The `@Order` on each `LumenModule` determines when its beans are registered relative to other modules. This is critical because post-processors are added in registration order, which determines the proxy-wrapping order:
+The `@Order` on each `LumenModule` determines when its lights are registered relative to other modules. This is critical because post-processors are added in registration order, which determines the proxy-wrapping order:
 
 | Module | `@Order` | Effect |
 |---|---|---|
@@ -342,7 +343,7 @@ sequenceDiagram
         RI->>Arg: resolve each parameter
         Arg-->>RI: resolved args[]
         RI->>Ctrl: method.invoke(controller, args)
-        Note over Ctrl: Passes through proxy chain:<br/>Cache → Security → Tx → real bean
+        Note over Ctrl: Passes through proxy chain:<br/>Cache → Security → Tx → real light
         Ctrl-->>RI: return value
         RI->>RH: handle(returnValue, request, response)
         RH-->>Client: HTTP Response
@@ -388,7 +389,7 @@ DefaultExceptionResolver        — @ResponseStatus on exception class, fallback
 
 ## 9. Proxy and Post-Processor Chain
 
-Cross-cutting concerns (caching, security, transactions) are implemented using ByteBuddy-generated proxy classes. Each post-processor wraps the bean in a proxy during the `container.initialize()` phase.
+Cross-cutting concerns (caching, security, transactions) are implemented using ByteBuddy-generated proxy classes. Each post-processor wraps the light in a proxy during the `container.initialize()` phase.
 
 ### Proxy wrapping order
 
@@ -398,7 +399,7 @@ graph LR
     Cache["CacheProxy\n@Order(-1)"]
     Sec["SecurityProxy\n@Order(0)"]
     Tx["TxProxy\n@Order(MAX)"]
-    Real["Real Bean"]
+    Real["Real Light"]
 
     Client --> Cache --> Sec --> Tx --> Real
 ```
@@ -438,11 +439,11 @@ AuthorizationFilter               — enforces permit rules per route
 ExceptionTranslationFilter        — catches AccessDeniedException → 401/403
 ```
 
-Method-level security is applied by `MethodSecurityProcessor` which wraps service beans with a `MethodSecurityInterceptor`. The interceptor evaluates SpEL-like expressions from `@PreAuthorize` / `@PostAuthorize`.
+Method-level security is applied by `MethodSecurityProcessor` which wraps service lights with a `MethodSecurityInterceptor`. The interceptor evaluates `@PreAuthorize` / `@PostAuthorize` expressions using the **Gleam** expression engine (`lumen-gleam`).
 
 ### Caching
 
-`CacheProcessor` wraps beans that declare `@Cacheable`, `@CacheEvict`, or `@CachePut` with a `CacheInterceptor` proxy. The default `CacheManager` is `SimpleCacheManager` backed by `ConcurrentHashMap`. A custom `CacheManager` bean replaces it automatically.
+`CacheProcessor` wraps lights that declare `@Cacheable`, `@CacheEvict`, or `@CachePut` with a `CacheInterceptor` proxy. The default `CacheManager` is `SimpleCacheManager` backed by `ConcurrentHashMap`. A custom `CacheManager` light replaces it automatically.
 
 Cache keys are resolved by `SimpleKeyGenerator`:
 - Blank expression → `methodName:arg0`
@@ -453,7 +454,7 @@ Null values are cached using a `NULL_MARKER` sentinel to distinguish a cached `n
 
 ### Transactions
 
-`TransactionalProcessor` wraps beans whose class (or any superclass) declares `@Transactional` methods with a `TransactionalInterceptor`. The interceptor delegates to `JpaTransactionManager`, which manages an `EntityManager` bound to the current thread via `EntityManagerHolder`.
+`TransactionalProcessor` wraps lights whose class (or any superclass) declares `@Transactional` methods with a `TransactionalInterceptor`. The interceptor delegates to `JpaTransactionManager`, which manages an `EntityManager` bound to the current thread via `EntityManagerHolder`.
 
 ### Validation
 
@@ -461,7 +462,7 @@ Null values are cached using a `NULL_MARKER` sentinel to distinguish a cached `n
 
 ### Asynchronous execution
 
-`AsyncProcessor` wraps beans with `@Async` methods in an `AsyncInterceptor`. The interceptor submits the method call to a fixed-size thread pool and returns a `CompletableFuture` immediately. Methods that themselves return `CompletableFuture` are unwrapped to avoid `CompletableFuture<CompletableFuture<T>>`.
+`AsyncProcessor` wraps lights with `@Async` methods in an `AsyncInterceptor`. The interceptor submits the method call to a fixed-size thread pool and returns a `CompletableFuture` immediately. Methods that themselves return `CompletableFuture` are unwrapped to avoid `CompletableFuture<CompletableFuture<T>>`.
 
 `ScheduledTaskProcessor` collects `@Scheduled` methods and registers them with `ScheduledTaskInitializer`, which fires them after container initialisation using a `ScheduledExecutorService`.
 
@@ -475,11 +476,11 @@ Lumen exposes clean extension points at every major seam:
 |---|---|---|
 | `LumenModule` | `lumen-core` | `META-INF/services/io.lumen.core.LumenModule` |
 | `ProxyProvider` | `lumen-core` | `META-INF/services/io.lumen.core.proxy.ProxyProvider` |
-| `LumenInitializer` | `lumen-core` | Register as a bean; runs after `container.initialize()` |
+| `LumenInitializer` | `lumen-core` | Register as a light; runs after `container.initialize()` |
 | `LightProcessor` | `lumen-core` | `container.addPostProcessor()` / `addPreProcessor()` |
-| `CacheManager` | `lumen-cache` | Register as a `@Light` bean |
-| `ViewResolver` | `lumen-web-mvc` | Register as a `@Light` bean |
-| `MailSender` | `lumen-mail` | Register as a `@Light` bean |
+| `CacheManager` | `lumen-cache` | Register as a `@Component` (a light) |
+| `ViewResolver` | `lumen-web-mvc` | Register as a `@Component` (a light) |
+| `MailSender` | `lumen-mail` | Register as a `@Component` (a light) |
 
 ---
 

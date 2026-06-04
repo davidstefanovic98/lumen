@@ -7,6 +7,7 @@ import io.lumen.security.exception.AccessDeniedException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -112,13 +113,141 @@ class MethodSecurityExpressionEvaluatorTest {
                 () -> MethodSecurityExpressionEvaluator.check("hasAnyRole('ADMIN', 'MANAGER')"));
     }
 
+    // --- hasAuthority ---
+
+    @Test
+    void hasAuthority_requiresExactMatch_noRolePrefix() {
+        // authenticate() stores ROLE_ADMIN (helper adds prefix)
+        authenticate("ADMIN");
+        // hasRole auto-adds ROLE_ → 'ADMIN' matches 'ROLE_ADMIN'
+        assertDoesNotThrow(() -> MethodSecurityExpressionEvaluator.check("hasRole('ADMIN')"));
+        // hasAuthority is exact — 'ADMIN' alone does not match 'ROLE_ADMIN'
+        assertThrows(AccessDeniedException.class,
+                () -> MethodSecurityExpressionEvaluator.check("hasAuthority('ADMIN')"));
+        // hasAuthority('ROLE_ADMIN') exact match → passes
+        assertDoesNotThrow(() -> MethodSecurityExpressionEvaluator.check("hasAuthority('ROLE_ADMIN')"));
+    }
+
+    @Test
+    void hasAuthority_throws_whenNotAuthenticated() {
+        assertThrows(AccessDeniedException.class,
+                () -> MethodSecurityExpressionEvaluator.check("hasAuthority('ROLE_ADMIN')"));
+    }
+
+    // --- hasAnyAuthority ---
+
+    @Test
+    void hasAnyAuthority_passes_whenUserHasOne() {
+        authenticate("ADMIN");
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.check("hasAnyAuthority('ROLE_ADMIN', 'ROLE_USER')"));
+    }
+
+    @Test
+    void hasAnyAuthority_throws_whenUserHasNone() {
+        authenticate("USER");
+        assertThrows(AccessDeniedException.class,
+                () -> MethodSecurityExpressionEvaluator.check("hasAnyAuthority('ROLE_READ_USERS', 'ROLE_WRITE_USERS')"));
+    }
+
+    // --- combined expressions ---
+
+    @Test
+    void and_passes_whenBothTrue() {
+        authenticate("ADMIN");
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.check("hasRole('ADMIN') && isAuthenticated()"));
+    }
+
+    @Test
+    void and_throws_whenOneFalse() {
+        authenticate("USER");
+        assertThrows(AccessDeniedException.class,
+                () -> MethodSecurityExpressionEvaluator.check("hasRole('ADMIN') && isAuthenticated()"));
+    }
+
+    @Test
+    void or_passes_whenSecondTrue() {
+        authenticate("USER");
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.check("hasRole('ADMIN') || hasRole('USER')"));
+    }
+
+    @Test
+    void negation_passes_whenInnerFalse() {
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.check("!isAuthenticated()"));
+    }
+
+    @Test
+    void negation_throws_whenInnerTrue() {
+        authenticate("USER");
+        assertThrows(AccessDeniedException.class,
+                () -> MethodSecurityExpressionEvaluator.check("!isAuthenticated()"));
+    }
+
+    // --- #authentication property navigation ---
+
+    @Test
+    void authenticationName_passesWhenMatches() {
+        authenticate("USER");
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.check("#authentication.name == 'user'"));
+    }
+
+    @Test
+    void authenticationName_throwsWhenDoesNotMatch() {
+        authenticate("USER");
+        assertThrows(AccessDeniedException.class,
+                () -> MethodSecurityExpressionEvaluator.check("#authentication.name == 'other'"));
+    }
+
+    // --- checkPre with method parameter binding ---
+
+    @Test
+    void checkPre_bindsMethodParameters() throws NoSuchMethodException {
+        authenticate("USER");
+        Method method = Stubs.class.getMethod("transfer", String.class, Long.class);
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.checkPre("#toAccount == 'alice'", method, new Object[]{"alice", 100L}));
+        assertThrows(AccessDeniedException.class, () ->
+                MethodSecurityExpressionEvaluator.checkPre("#toAccount == 'alice'", method, new Object[]{"bob", 100L}));
+    }
+
+    @Test
+    void checkPre_combinedParamAndRole() throws NoSuchMethodException {
+        authenticate("ADMIN");
+        Method method = Stubs.class.getMethod("transfer", String.class, Long.class);
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.checkPre(
+                        "hasRole('ADMIN') || #toAccount == #authentication.name",
+                        method, new Object[]{"alice", 50L}));
+    }
+
+    // --- checkPost with #returnObject ---
+
+    @Test
+    void checkPost_bindsReturnObject() throws NoSuchMethodException {
+        authenticate("USER");
+        Method method = Stubs.class.getMethod("transfer", String.class, Long.class);
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.checkPost("#returnObject == 'ok'", method, new Object[]{}, "ok"));
+        assertThrows(AccessDeniedException.class, () ->
+                MethodSecurityExpressionEvaluator.checkPost("#returnObject == 'ok'", method, new Object[]{}, "fail"));
+    }
+
     // --- unknown function → access denied ---
 
     @Test
     void unknownFunction_throwsAccessDeniedException() {
-        // Gleam parses the expression but evaluation fails with an unknown function,
-        // which the evaluator maps to AccessDeniedException.
         assertThrows(AccessDeniedException.class,
                 () -> MethodSecurityExpressionEvaluator.check("unknownFunction()"));
+    }
+
+    // ── stubs ─────────────────────────────────────────────────────────────────
+
+    @SuppressWarnings("unused")
+    static class Stubs {
+        public void transfer(String toAccount, Long amount) {}
     }
 }

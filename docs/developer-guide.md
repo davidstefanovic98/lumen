@@ -126,14 +126,14 @@ public class LumenMyModule implements LumenModule {
         // read configuration
         String myProperty = env.getProperty("lumen.mymodule.setting", "default");
 
-        // register beans
+        // register lights
         container.register(MyService.class);
 
         // register an external instance (bypasses the normal lifecycle)
         MyClient client = new MyClient(myProperty);
         container.registerExternalInstance(MyClient.class, client);
 
-        // add a post-processor that runs after every bean is instantiated
+        // add a post-processor that runs after every light is instantiated
         container.addPostProcessor(new MyProcessor());
     }
 }
@@ -155,7 +155,7 @@ Add the module entry to `pom.xml` and create a starter `pom.xml` that pulls in t
 
 ## 3. Custom LightProcessor
 
-`LightProcessor` is a post-processor hook that runs after every bean is instantiated. Use it to wrap beans in a proxy, inject additional dependencies, or validate the bean's state.
+`LightProcessor` is a post-processor hook that runs after every light is instantiated. Use it to wrap lights in a proxy, inject additional dependencies, or validate the light's state.
 
 ```java
 public class MyProcessor implements LightProcessor {
@@ -185,7 +185,7 @@ container.addPostProcessor(new MyProcessor());
 
 ### `afterInstantiation` vs `beforeInstantiation`
 
-- `beforeInstantiation` — called before the bean is created; can substitute a different instance.
+- `beforeInstantiation` — called before the light is created; can substitute a different instance.
 - `afterInstantiation` — called after creation and injection; the typical place for proxy wrapping.
 
 ### Proxy ordering
@@ -196,7 +196,7 @@ The proxy wrapping order equals the order in which processors were added. Later 
 
 ## 4. Custom LumenInitializer
 
-`LumenInitializer` runs after `container.initialize()` completes, when the `ServletContext` is available. Use it to register servlets, listeners, or perform tasks that require fully initialized beans.
+`LumenInitializer` runs after `container.initialize()` completes, when the `ServletContext` is available. Use it to register servlets, listeners, or perform tasks that require fully initialized lights.
 
 ```java
 @Order(10)
@@ -216,13 +216,13 @@ public class MyInitializer implements LumenInitializer {
 }
 ```
 
-Register it as a bean in your `LumenModule.init()`:
+Register it as a light in your `LumenModule.init()`:
 
 ```java
 container.register(MyInitializer.class);
 ```
 
-The container resolves `MyInitializer`'s constructor dependencies automatically. `LumenInitializer` beans are detected and called in `@Order` order inside `LumenServletContainerInitializer.onStartup()`.
+The container resolves `MyInitializer`'s constructor dependencies automatically. `LumenInitializer` lights are detected and called in `@Order` order inside `LumenServletContainerInitializer.onStartup()`.
 
 ---
 
@@ -254,7 +254,7 @@ Register in `META-INF/services/io.lumen.core.proxy.ProxyProvider`. If multiple p
 
 ## 6. Custom CacheManager
 
-Register a `CacheManager` bean before `LumenCacheModule` reads it. Because `LumenCacheModule` runs at `@Order(-1)`, register your custom manager in a module with an even lower order (e.g., `@Order(-2)`), or as an external instance in a `@Configuration` class processed before modules run.
+Register a `CacheManager` light before `LumenCacheModule` reads it. Because `LumenCacheModule` runs at `@Order(-1)`, register your custom manager in a module with an even lower order (e.g., `@Order(-2)`), or as an external instance in a `@Configuration` class processed before modules run.
 
 ```java
 @Configuration
@@ -273,10 +273,10 @@ public class CacheConfig {
 
 ## 7. Custom ViewResolver
 
-Implement `ViewResolver` from `lumen-web-mvc` and register it as a bean. The framework calls it from `ViewResultHandler` when a controller method returns a `String` or `ModelAndView`.
+Implement `ViewResolver` from `lumen-web-mvc` and register it as a light. The framework calls it from `ViewResultHandler` when a controller method returns a `String` or `ModelAndView`.
 
 ```java
-@Light
+@Component
 public class FreemarkerViewResolver implements ViewResolver {
 
     private final freemarker.template.Configuration freemarker;
@@ -319,7 +319,7 @@ public class PrincipalArgumentResolver implements MethodArgumentResolver {
 }
 ```
 
-Wire it in a `LumenInitializer` or via a hook in `WebLumenInitializer`. The simplest approach is to register a `LumenInitializer` bean that injects the `CompositeMethodArgumentResolver` and calls `addResolver()`.
+Wire it in a `LumenInitializer` or via a hook in `WebLumenInitializer`. The simplest approach is to register a `LumenInitializer` light that injects the `CompositeMethodArgumentResolver` and calls `addResolver()`.
 
 ---
 
@@ -365,7 +365,7 @@ public void processOrder(Order order) {
 
 ### Writing event listeners
 
-Annotate a method in any `@Light`-managed bean with `@EventListener`. The parameter type determines which events it receives:
+Annotate a method in any light with `@EventListener`. The parameter type determines which events it receives:
 
 ```java
 @EventListener
@@ -386,7 +386,7 @@ public void onOrderProcessed(OrderProcessedEvent event) {
 
 ### How it works internally
 
-`ApplicationEventMulticaster` is registered as an external instance of both `ApplicationEventMulticaster` and `ApplicationEventPublisher` in `AnnotationApplicationContext.registerDefaultProcessors()`. `EventListenerProcessor` (a `LightProcessor`) scans every instantiated bean for `@EventListener` methods and registers them with the multicaster. When `publishEvent()` is called, the multicaster iterates all registered listeners whose event type is assignable from the published event and invokes them.
+`ApplicationEventMulticaster` is registered as an external instance of both `ApplicationEventMulticaster` and `ApplicationEventPublisher` in `AnnotationApplicationContext.registerDefaultProcessors()`. `EventListenerProcessor` (a `LightProcessor`) scans every instantiated light for `@EventListener` methods and registers them with the multicaster. When `publishEvent()` is called, the multicaster iterates all registered listeners whose event type is assignable from the published event and invokes them.
 
 ---
 
@@ -394,7 +394,7 @@ public void onOrderProcessed(OrderProcessedEvent event) {
 
 ### Container tests
 
-Use `LightContainer` directly to test bean wiring:
+Use `LightContainer` directly to test light wiring:
 
 ```java
 @Test
@@ -450,7 +450,7 @@ void returnsHello() throws Exception {
 }
 ```
 
-### Testing proxied beans
+### Testing proxied lights
 
 Test proxied behaviour through the public interface:
 
@@ -561,7 +561,7 @@ The `fat-jar` Maven Shade profile is defined in the parent `pom.xml` and is inhe
 
 | Strategy | Mechanism | Use case |
 |---|---|---|
-| `createLazyProxy` | ByteBuddy subclass; interceptor defers real bean creation | `@Lazy` injection |
+| `createLazyProxy` | ByteBuddy subclass; interceptor defers real light creation | `@Lazy` injection |
 | `createAopProxy` | ByteBuddy subclass; general interceptor chain | General AOP |
 | `createConfigurationProxy` | ByteBuddy subclass; intercepts `@Light` method calls | `@Configuration` caching |
 | `createInterfaceProxy` | ByteBuddy implements interface(s) | JPA repository interfaces |
@@ -569,11 +569,11 @@ The `fat-jar` Maven Shade profile is defined in the parent `pom.xml` and is inhe
 
 ### Why `createDelegatingProxy` uses Unsafe
 
-When wrapping a bean that was created by constructor injection (no no-argument constructor), the proxy subclass cannot be instantiated with `getDeclaredConstructor().newInstance()` because the constructor requires arguments. The framework falls back to `sun.misc.Unsafe.allocateInstance()`, which allocates the object on the heap without invoking any constructor. The uninitialized fields of the proxy class itself are irrelevant because every method call is forwarded to the real delegate.
+When wrapping a light that was created by constructor injection (no no-argument constructor), the proxy subclass cannot be instantiated with `getDeclaredConstructor().newInstance()` because the constructor requires arguments. The framework falls back to `sun.misc.Unsafe.allocateInstance()`, which allocates the object on the heap without invoking any constructor. The uninitialized fields of the proxy class itself are irrelevant because every method call is forwarded to the real delegate.
 
 ### Annotation resolution in delegating proxies
 
-`MethodInterceptor` implementations that need to read annotations (e.g., `@Cacheable`, `@PreAuthorize`) must resolve the annotation from the real target class, not from the proxy class. This works correctly because `CacheProcessor` and `MethodSecurityProcessor` run before `TransactionalProcessor` — when they wrap a bean, the bean is still the original class with annotations intact. By the time `TransactionalProcessor` runs, the target passed to it is the cache/security proxy, not the original. `TransactionalInterceptor` reads annotations from the stored real target reference, not from `method.getDeclaringClass()`.
+`MethodInterceptor` implementations that need to read annotations (e.g., `@Cacheable`, `@PreAuthorize`) must resolve the annotation from the real target class, not from the proxy class. This works correctly because `CacheProcessor` and `MethodSecurityProcessor` run before `TransactionalProcessor` — when they wrap a light, the light is still the original class with annotations intact. By the time `TransactionalProcessor` runs, the target passed to it is the cache/security proxy, not the original. `TransactionalInterceptor` reads annotations from the stored real target reference, not from `method.getDeclaringClass()`.
 
 ### Exception unwrapping
 
@@ -583,22 +583,22 @@ When wrapping a bean that was created by constructor injection (no no-argument c
 
 ## 14. Container Bootstrap Internals
 
-### External instance vs. registered bean
+### External instance vs. registered light
 
-`registerExternalInstance(type, instance)` stores a bean in the `READY` state, bypassing the normal creation lifecycle. This is used by modules to inject pre-built objects (e.g., `Environment`, `ApplicationEventPublisher`, `ServletContext`) before `container.initialize()` is called.
+`registerExternalInstance(type, instance)` stores a light in the `READY` state, bypassing the normal creation lifecycle. This is used by modules to inject pre-built objects (e.g., `Environment`, `ApplicationEventPublisher`, `ServletContext`) before `container.initialize()` is called.
 
-`register(clazz)` stores a `LightDefinition` in the `PENDING` state. The bean is not instantiated until `container.initialize()` is called, or until another bean requests it as a dependency.
+`register(clazz)` stores a `LightDefinition` in the `PENDING` state. The light is not instantiated until `container.initialize()` is called, or until another light requests it as a dependency.
 
 The `READY` state also means that `container.getLight(Environment.class)` works during `LumenModule.init()` even though the container is not yet initialized. This is how modules read properties.
 
 ### Why modules run before initialize()
 
-`ModuleInitializer` calls `module.init()` before `container.initialize()`. This is intentional: modules only *register* beans and processors during `init()` — they do not *instantiate* them. Instantiation happens in `container.initialize()`, which respects all `@Order` constraints and runs the full processor chain. If modules called `getLight()` for application beans during `init()`, those beans would be instantiated before the processor chain was fully assembled, so proxy wrapping would be incomplete.
+`ModuleInitializer` calls `module.init()` before `container.initialize()`. This is intentional: modules only *register* lights and processors during `init()` — they do not *instantiate* them. Instantiation happens in `container.initialize()`, which respects all `@Order` constraints and runs the full processor chain. If modules called `getLight()` for application lights during `init()`, those lights would be instantiated before the processor chain was fully assembled, so proxy wrapping would be incomplete.
 
 ### Circular dependency detection
 
-`LightResolver` maintains a `Set<Class<?>> resolutionInProgress` (thread-local). When it starts resolving a bean, it adds the type to the set. If the same type is encountered again before resolution completes, `CircularDependencyException` is thrown. `@Lazy` injection points break cycles — the injected proxy does not trigger resolution of the lazy bean at `initialize()` time.
+`LightResolver` maintains a `Set<Class<?>> resolutionInProgress` (thread-local). When it starts resolving a light, it adds the type to the set. If the same type is encountered again before resolution completes, `CircularDependencyException` is thrown. `@Lazy` injection points break cycles — the injected proxy does not trigger resolution of the lazy light at `initialize()` time.
 
 ### `@Configuration` proxy caching
 
-When `@Configuration` is processed, `ConfigProcessor` registers the original class and then creates a ByteBuddy subclass proxy via `createConfigurationProxy()`. This proxy overrides every `@Light`-annotated method to check whether the container already holds an instance before calling the real method. Without this, two beans that both declare `@Inject UserService` via separate `@Light` factory methods in the same `@Configuration` would receive different instances.
+When `@Configuration` is processed, `ConfigProcessor` registers the original class and then creates a ByteBuddy subclass proxy via `createConfigurationProxy()`. This proxy overrides every `@Light`-annotated method to check whether the container already holds an instance before calling the real method. Without this, two lights that both declare `@Inject UserService` via separate `@Light` factory methods in the same `@Configuration` would receive different instances.

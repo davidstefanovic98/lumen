@@ -28,6 +28,22 @@ public class LumenActuatorModule implements LumenModule {
         container.register(SimpleHealthIndicator.class);
 
         String basePath = env != null ? env.getProperty("lumen.actuator.base-path", "/actuator") : "/actuator";
+
+        boolean securityEnabled = Boolean.parseBoolean(
+                env != null ? env.getProperty("lumen.actuator.security.enabled", "true") : "true");
+
+        if (securityEnabled) {
+            try {
+                Class.forName("io.lumen.security.HttpSecurity");
+                ActuatorSecurityContributor.register(basePath);
+                logger.info("Actuator security enabled: {}/health and {}/info are open, rest requires authentication", basePath, basePath);
+            } catch (ClassNotFoundException ignored) {
+                logger.debug("lumen-security not on classpath — actuator endpoints are unprotected");
+            }
+        } else {
+            logger.info("Actuator security disabled (lumen.actuator.security.enabled=false)");
+        }
+
         logger.info("Actuator endpoints registered at {}", basePath);
     }
 }

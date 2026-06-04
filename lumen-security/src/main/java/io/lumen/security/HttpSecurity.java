@@ -11,6 +11,23 @@ import java.util.function.Consumer;
 public class HttpSecurity {
     private HttpSecurity() {}
 
+    private static final java.util.concurrent.CopyOnWriteArrayList<SecurityRuleContributor> CONTRIBUTORS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /**
+     * Registers a module-level rule contributor whose rules are appended after the
+     * user's own {@code authorizeRequests} rules during {@link Builder#build()}.
+     * User rules always take priority — contributors provide overridable defaults.
+     */
+    public static void addRuleContributor(SecurityRuleContributor contributor) {
+        CONTRIBUTORS.add(contributor);
+    }
+
+    /** Clears all registered contributors. Intended for use in tests. */
+    public static void clearContributors() {
+        CONTRIBUTORS.clear();
+    }
+
     public static Builder builder(AuthenticationManager authManager) {
         return new Builder(authManager);
     }
@@ -88,7 +105,12 @@ public class HttpSecurity {
             }
 
             filters.add(new ExceptionTranslationFilter(loginPage));
-            filters.add(new AuthorizationFilter(rules));
+
+            List<AuthorizationRule> allRules = new ArrayList<>(rules);
+            for (SecurityRuleContributor contributor : CONTRIBUTORS) {
+                allRules.addAll(contributor.getRules());
+            }
+            filters.add(new AuthorizationFilter(allRules));
             filters.addAll(customFilters);
             filters.sort(Comparator.comparingInt(SecuritySubFilter::getOrder));
 

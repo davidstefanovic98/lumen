@@ -98,6 +98,23 @@ public final class MethodSecurityExpressionEvaluator {
                     .anyMatch(authorities::contains);
         });
 
+        ctx.registerFunction("hasAuthority", a -> {
+            if (auth == null || !auth.isAuthenticated()) return false;
+            String authority = (String) a[0];
+            return auth.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .anyMatch(authority::equals);
+        });
+
+        ctx.registerFunction("hasAnyAuthority", a -> {
+            if (auth == null || !auth.isAuthenticated()) return false;
+            List<String> authorities = auth.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority).toList();
+            return Arrays.stream(a)
+                    .map(r -> (String) r)
+                    .anyMatch(authorities::contains);
+        });
+
         return ctx;
     }
 
