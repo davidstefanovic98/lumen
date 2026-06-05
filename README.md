@@ -25,8 +25,7 @@ Managed objects are called **lights** (not beans).
 ```
 
 ```java
-@Configuration
-@ComponentScan
+@LumenBootApplication
 public class App {
     public static void main(String[] args) {
         LumenApplication.run(App.class, args);
@@ -102,7 +101,7 @@ mvn clean install
 # Run a specific module's tests
 mvn test -pl lumen-security
 
-# Run the demo app (requires PostgreSQL on port 5436)
+# Run the demo app
 cd ../lumen-demo && mvn exec:exec
 
 # Build a runnable fat JAR
