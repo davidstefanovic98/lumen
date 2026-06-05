@@ -56,8 +56,13 @@ class WebServer {
 
     public void stopGracefully(int timeoutSeconds) {
         try {
-            if (timeoutSeconds > 0 && tomcat.getService() instanceof StandardService svc) {
-                svc.setGracefulStopAwaitMillis(timeoutSeconds * 1000L);
+            if (timeoutSeconds > 0) {
+                // Pause the connector immediately so no new connections are accepted
+                // while in-flight requests are allowed to complete.
+                tomcat.getConnector().pause();
+                if (tomcat.getService() instanceof StandardService svc) {
+                    svc.setGracefulStopAwaitMillis(timeoutSeconds * 1000L);
+                }
             }
             tomcat.stop();
             tomcat.destroy();

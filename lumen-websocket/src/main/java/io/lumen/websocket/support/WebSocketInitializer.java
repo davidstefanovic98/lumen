@@ -44,7 +44,7 @@ public class WebSocketInitializer implements LumenInitializer {
             try {
                 ServerEndpointConfig config = ServerEndpointConfig.Builder
                         .create(LumenWebSocketEndpoint.class, path)
-                        .configurator(new OriginValidatingConfigurator(handler, allowedOrigins))
+                        .configurator(new OriginValidatingConfigurator(handler, allowedOrigins, registry.getInterceptors()))
                         .build();
 
                 serverContainer.addEndpoint(config);

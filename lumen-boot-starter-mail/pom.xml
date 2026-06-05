@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.lumen</groupId>
         <artifactId>lumen-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>lumen-boot-starter-mail</artifactId>
@@ -15,12 +15,12 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-boot-starter</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-mail</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <!-- Eclipse Angus — the Jakarta Mail reference implementation -->
         <dependency>

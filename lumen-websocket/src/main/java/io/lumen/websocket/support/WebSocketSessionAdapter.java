@@ -55,6 +55,16 @@ class WebSocketSessionAdapter implements WebSocketSession {
         return session.getPathParameters();
     }
 
+    @Override
+    public Object getPrincipal() {
+        return session.getUserProperties().get("lumen.security.principal");
+    }
+
+    @Override
+    public Map<String, Object> getAttributes() {
+        return session.getUserProperties();
+    }
+
     Session unwrap() {
         return session;
     }

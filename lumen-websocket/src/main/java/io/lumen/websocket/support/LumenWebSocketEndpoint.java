@@ -9,16 +9,23 @@ import io.lumen.websocket.WebSocketHandler;
 import io.lumen.websocket.WebSocketSession;
 import jakarta.websocket.CloseReason;
 import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.MessageHandler;
 import jakarta.websocket.Session;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 
 public class LumenWebSocketEndpoint extends jakarta.websocket.Endpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(LumenWebSocketEndpoint.class);
 
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
     private final WebSocketHandler handler;
+    private Runnable setupSecurity;
+    private Runnable cleanupSecurity;
 
     public LumenWebSocketEndpoint(WebSocketHandler handler) {
         this.handler = handler;
@@ -26,13 +33,17 @@ public class LumenWebSocketEndpoint extends jakarta.websocket.Endpoint {
 
     @Override
     public void onOpen(Session session, EndpointConfig config) {
+        Map<String, Object> props = config.getUserProperties();
+        setupSecurity = (Runnable) props.get("lumen.security.setup");
+        cleanupSecurity = (Runnable) props.get("lumen.security.cleanup");
+
         WebSocketSession ws = new WebSocketSessionAdapter(session);
 
         // Use the explicit Class<T> overload so Tomcat doesn't need to infer
         // the generic type via reflection (cast lambdas lose <T> at runtime).
         session.addMessageHandler(String.class, message -> {
             try {
-                handler.handleTextMessage(ws, new TextMessage(message));
+                withSecurity(() -> handler.handleTextMessage(ws, new TextMessage(message)));
             } catch (Exception e) {
                 logger.error("Error handling text message: {}", e.getMessage(), e);
                 handler.handleError(ws, e);
@@ -41,7 +52,7 @@ public class LumenWebSocketEndpoint extends jakarta.websocket.Endpoint {
 
         session.addMessageHandler(ByteBuffer.class, data -> {
             try {
-                handler.handleBinaryMessage(ws, new BinaryMessage(data.array()));
+                withSecurity(() -> handler.handleBinaryMessage(ws, new BinaryMessage(data.array())));
             } catch (Exception e) {
                 logger.error("Error handling binary message: {}", e.getMessage(), e);
                 handler.handleError(ws, e);
@@ -49,7 +60,7 @@ public class LumenWebSocketEndpoint extends jakarta.websocket.Endpoint {
         });
 
         try {
-            handler.afterConnectionEstablished(ws);
+            withSecurity(() -> handler.afterConnectionEstablished(ws));
         } catch (Exception e) {
             logger.error("Error in afterConnectionEstablished: {}", e.getMessage(), e);
         }
@@ -63,7 +74,7 @@ public class LumenWebSocketEndpoint extends jakarta.websocket.Endpoint {
                 closeReason.getReasonPhrase()
         );
         try {
-            handler.afterConnectionClosed(ws, status);
+            withSecurity(() -> handler.afterConnectionClosed(ws, status));
         } catch (Exception e) {
             logger.error("Error in afterConnectionClosed: {}", e.getMessage(), e);
         }
@@ -72,5 +83,14 @@ public class LumenWebSocketEndpoint extends jakarta.websocket.Endpoint {
     @Override
     public void onError(Session session, Throwable throwable) {
         handler.handleError(new WebSocketSessionAdapter(session), throwable);
+    }
+
+    private void withSecurity(ThrowingRunnable action) throws Exception {
+        if (setupSecurity != null) setupSecurity.run();
+        try {
+            action.run();
+        } finally {
+            if (cleanupSecurity != null) cleanupSecurity.run();
+        }
     }
 }

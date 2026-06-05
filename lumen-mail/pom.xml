@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.lumen</groupId>
         <artifactId>lumen-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>lumen-mail</artifactId>
@@ -21,12 +21,12 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-core</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-context</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <!-- Jakarta Mail API — compile only; implementation provided at runtime by the starter -->
         <dependency>

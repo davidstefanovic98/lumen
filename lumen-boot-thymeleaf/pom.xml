@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.lumen</groupId>
         <artifactId>lumen-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>lumen-boot-thymeleaf</artifactId>
@@ -21,7 +21,7 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-context</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <!--
             lumen-web-mvc is optional — ThymeleafViewResolver is only registered
@@ -31,7 +31,7 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-web-mvc</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
             <optional>true</optional>
         </dependency>
         <dependency>

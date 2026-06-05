@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.lumen</groupId>
         <artifactId>lumen-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>lumen-security</artifactId>
@@ -20,12 +20,12 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-web</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-gleam</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.mindrot</groupId>
@@ -34,8 +34,14 @@
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
+            <artifactId>lumen-websocket</artifactId>
+            <version>1.0.0</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.lumen</groupId>
             <artifactId>lumen-aop</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>1.0.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

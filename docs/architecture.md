@@ -100,12 +100,15 @@ These are implementation details. They must never appear as direct dependencies 
 | `lumen-web` | `1` | `DispatcherServlet`, routing, argument resolution, CORS, exception handling |
 | `lumen-web-mvc` | — | `ModelAndView`, `ViewResolver` interface, `ViewResultHandler` |
 | `lumen-validation` | `2` | `@Valid`, constraint annotations, 422 responses |
-| `lumen-async` | `3` | `@Async` (thread pool), `@Scheduled` (fixed rate/delay) |
+| `lumen-async` | `3` | `@Async` (thread pool), `@Scheduled` (fixed rate/delay/cron) |
 | `lumen-websocket` | `4` | JSR-356 WebSocket endpoints, origin validation |
 | `lumen-mail` | `2` | `MailSender`, `JavaMailSender`, `MimeMessageHelper` |
 | `lumen-cache` | `-1` | `@Cacheable`/`@CacheEvict`/`@CachePut`, `CacheManager` SPI |
 | `lumen-data` | `MAX` | JPA repositories, derived queries, `@Transactional` |
+| `lumen-migration` | — | `DatabaseMigrator` SPI interface + `NoOpDatabaseMigrator`; no `LumenModule` |
 | `lumen-boot-thymeleaf` | `2` | `TemplateEngine` light; conditional `ThymeleafViewResolver` |
+| `lumen-boot-flyway` | `6` | Flyway database migration; runs before `lumen-data` |
+| `lumen-boot-actuator` | `10` | Health/info/env/lights HTTP endpoints; optional security via `SecurityRuleContributor` |
 
 ### User-facing starters
 
@@ -123,6 +126,8 @@ These are the only modules a user should import.
 | `lumen-boot-starter-websocket` | starter-web + websocket |
 | `lumen-boot-starter-async` | starter + async |
 | `lumen-boot-starter-mail` | starter + mail + Angus Mail |
+| `lumen-boot-starter-flyway` | starter + boot-flyway (Flyway) |
+| `lumen-boot-starter-actuator` | starter-web + boot-actuator |
 
 ---
 
@@ -143,6 +148,8 @@ graph TD
         S_WS[lumen-boot-starter-websocket]
         S_ASYNC[lumen-boot-starter-async]
         S_MAIL[lumen-boot-starter-mail]
+        S_FLY[lumen-boot-starter-flyway]
+        S_ACT[lumen-boot-starter-actuator]
     end
 
     subgraph "Internal modules"
@@ -160,6 +167,9 @@ graph TD
         ASYNC[lumen-async]
         MAIL[lumen-mail]
         TL[lumen-boot-thymeleaf]
+        MIG[lumen-migration]
+        FLY[lumen-boot-flyway]
+        ACT[lumen-boot-actuator]
     end
 
     S_BASE --> CORE
@@ -195,6 +205,12 @@ graph TD
     S_MAIL --> S_BASE
     S_MAIL --> MAIL
 
+    S_FLY --> S_BASE
+    S_FLY --> FLY
+
+    S_ACT --> S_WEB
+    S_ACT --> ACT
+
     CTX --> CORE
     AOP --> CORE
     WEB --> CTX
@@ -207,6 +223,9 @@ graph TD
     ASYNC --> CORE
     MAIL --> CORE
     TL --> CTX
+    FLY --> MIG
+    FLY --> CTX
+    ACT --> CTX
 ```
 
 ---
@@ -305,9 +324,15 @@ The `@Order` on each `LumenModule` determines when its lights are registered rel
 |---|---|---|
 | `LumenBootModule` | `MIN_VALUE` | Loads `application.properties` first; all others can read properties. |
 | `LumenCacheModule` | `-1` | `CacheProcessor` added first → outermost proxy layer. |
-| `LumenSecurityModule` | `0` | `MethodSecurityProcessor` added second. |
+| `LumenSecurityModule` | `0` | `MethodSecurityProcessor` added second; registers `SecurityContextTaskDecorator`. |
 | `LumenWebModule` | `1` | `ControllerProcessor` runs after security → routes point to secured instances. |
 | `LumenValidationModule` | `2` | `DefaultValidator` registered; picked up by `WebLumenInitializer`. |
+| `LumenMailModule` | `2` | `MailSender` registered. |
+| `LumenBootThymeleafModule` | `2` | `TemplateEngine` registered; `ThymeleafViewResolver` wired if `lumen-web-mvc` is present. |
+| `LumenAsyncModule` | `3` | `AsyncProcessor` and `ScheduledTaskProcessor` registered. |
+| `LumenWebSocketModule` | `4` | `WebSocketHandlerRegistry` and `WebSocketHandlerProcessor` registered. |
+| `LumenFlywayModule` | `6` | Flyway migration executed; schema is ready before `lumen-data` creates repositories. |
+| `LumenActuatorModule` | `10` | `ActuatorController` and `HealthIndicator` lights registered. |
 | `LumenDataModule` | `MAX` | `TransactionalProcessor` added last → innermost proxy layer. |
 
 ---
@@ -464,7 +489,9 @@ Null values are cached using a `NULL_MARKER` sentinel to distinguish a cached `n
 
 `AsyncProcessor` wraps lights with `@Async` methods in an `AsyncInterceptor`. The interceptor submits the method call to a fixed-size thread pool and returns a `CompletableFuture` immediately. Methods that themselves return `CompletableFuture` are unwrapped to avoid `CompletableFuture<CompletableFuture<T>>`.
 
-`ScheduledTaskProcessor` collects `@Scheduled` methods and registers them with `ScheduledTaskInitializer`, which fires them after container initialisation using a `ScheduledExecutorService`.
+`ScheduledTaskProcessor` collects `@Scheduled` methods and registers them with `ScheduledTaskInitializer`, which fires them after container initialisation using a `ScheduledExecutorService`. Three modes are supported: `fixedRate`, `fixedDelay`, and 6-field `cron` expressions.
+
+`AsyncInterceptor` applies all `TaskDecorator` lights (resolved lazily from the container) to each submitted task. `lumen-security` ships `SecurityContextTaskDecorator`, which captures the caller's `Authentication` and restores it on the worker thread — making `@PreAuthorize` and `SecurityContextHolder` work inside `@Async` methods without coupling `lumen-async` to `lumen-security`.
 
 ---
 
@@ -478,9 +505,14 @@ Lumen exposes clean extension points at every major seam:
 | `ProxyProvider` | `lumen-core` | `META-INF/services/io.lumen.core.proxy.ProxyProvider` |
 | `LumenInitializer` | `lumen-core` | Register as a light; runs after `container.initialize()` |
 | `LightProcessor` | `lumen-core` | `container.addPostProcessor()` / `addPreProcessor()` |
+| `TaskDecorator` | `lumen-core` | Register as a `@Component` (a light); `lumen-async` applies all instances to `@Async` tasks |
 | `CacheManager` | `lumen-cache` | Register as a `@Component` (a light) |
+| `SecurityRuleContributor` | `lumen-security` | `HttpSecurity.addRuleContributor(contributor)` in `LumenModule.init()` |
 | `ViewResolver` | `lumen-web-mvc` | Register as a `@Component` (a light) |
+| `WebSocketHandler` | `lumen-websocket` | Annotate the class with `@LumenWebSocket` |
 | `MailSender` | `lumen-mail` | Register as a `@Component` (a light) |
+| `DatabaseMigrator` | `lumen-migration` | Register as external instance; `lumen-boot-flyway` provides the Flyway implementation |
+| `HealthIndicator` | `lumen-boot-actuator` | Register as a `@Component` (a light); aggregated by `/actuator/health` |
 
 ---
 

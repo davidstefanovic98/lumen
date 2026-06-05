@@ -21,6 +21,7 @@ public class LumenWebSocketModule implements LumenModule {
         List<String> globalOrigins = resolveGlobalOrigins(container);
 
         WebSocketHandlerRegistry registry = new WebSocketHandlerRegistry(globalOrigins);
+        registry.setInterceptorsSupplier(() -> container.getLights(HandshakeInterceptor.class));
         container.registerExternalInstance(WebSocketHandlerRegistry.class, registry);
 
         container.addPostProcessor(new WebSocketHandlerProcessor(registry));
