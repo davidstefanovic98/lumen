@@ -51,6 +51,7 @@ public class ScheduledTaskInitializer implements LumenInitializer {
                 scheduleNext(this, cron, name);
             }
         };
+        logger.info("Scheduled [{}] cron=\"{}\"", name, cron);
         scheduleNext(wrapper, cron, name);
     }
 
@@ -59,6 +60,6 @@ public class ScheduledTaskInitializer implements LumenInitializer {
         ZonedDateTime next = cron.nextExecution(now);
         long delayMs = Duration.between(now, next).toMillis();
         scheduler.schedule(runnable, delayMs, TimeUnit.MILLISECONDS);
-        logger.info("Scheduled [{}] cron=\"{}\" next execution at {}", name, cron, next);
+        logger.debug("Scheduled [{}] next execution at {}", name, next);
     }
 }
