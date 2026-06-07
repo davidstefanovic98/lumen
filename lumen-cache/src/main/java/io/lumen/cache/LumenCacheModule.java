@@ -22,7 +22,7 @@ public class LumenCacheModule implements LumenModule {
 
         Environment env = container.getLight(Environment.class);
         Integer configured = env.getProperty("lumen.cache.proxy-order", Integer.class);
-        int proxyOrder = configured != null ? configured : 0;
+        int proxyOrder = configured != null ? configured : -1;
 
         container.addPostProcessor(new CacheProcessor(cacheManager), proxyOrder);
     }

@@ -5,6 +5,7 @@ import io.lumen.cache.annotation.CachePut;
 import io.lumen.cache.annotation.Cacheable;
 import io.lumen.core.interceptor.MethodInterceptor;
 import io.lumen.core.interceptor.MethodInvocation;
+import io.lumen.core.util.ReflectionUtil;
 
 import java.lang.reflect.Method;
 
@@ -23,17 +24,17 @@ public class CacheInterceptor implements MethodInterceptor {
         Method method = invocation.getMethod();
         Object[] args = invocation.getArguments();
 
-        Cacheable cacheable = method.getAnnotation(Cacheable.class);
+        Cacheable cacheable = ReflectionUtil.findAnnotation(method, Cacheable.class);
         if (cacheable != null) {
             return handleCacheable(invocation, cacheable, method, args);
         }
 
-        CacheEvict evict = method.getAnnotation(CacheEvict.class);
+        CacheEvict evict = ReflectionUtil.findAnnotation(method, CacheEvict.class);
         if (evict != null) {
             return handleCacheEvict(invocation, evict, method, args);
         }
 
-        CachePut put = method.getAnnotation(CachePut.class);
+        CachePut put = ReflectionUtil.findAnnotation(method, CachePut.class);
         if (put != null) {
             return handleCachePut(invocation, put, method, args);
         }

@@ -22,7 +22,7 @@ public class LumenSecurityModule implements LumenModule {
 
         Environment env = container.getLight(Environment.class);
         Integer configured = env.getProperty("lumen.security.method.proxy-order", Integer.class);
-        int proxyOrder = configured != null ? configured : -1;
+        int proxyOrder = configured != null ? configured : 0;
 
         container.addPostProcessor(new MethodSecurityProcessor(), proxyOrder);
 
