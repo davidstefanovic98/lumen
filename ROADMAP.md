@@ -12,6 +12,13 @@ Small bug fixes and non-breaking improvements that can ship at any time.
 
 | Item | Notes |
 |---|---|
+| `CompletableFuture<T>` controller return type | `RouteInvoker` should detect `CompletableFuture` return values, call `request.startAsync()`, and write the response on completion — currently the future itself gets serialized as a raw JSON object |
+| `ExceptionTranslationFilter` returns 401 for unauthenticated API requests | Currently redirects to `/login` (Spring form-login default), which causes a 500 when no `/login` route is registered — REST APIs should receive a plain 401 response |
+| `AsyncProcessor` misses `@Async` on classes already proxied by earlier processors | When a class is wrapped by `CacheProcessor` before `AsyncProcessor` runs, `@Async` annotations are invisible through the ByteBuddy proxy — `AsyncProcessor` must walk the class hierarchy when scanning for `@Async` methods |
+| Configurable proxy order for cache and method security | `LumenCacheModule` and `LumenSecurityModule` hardcode their post-processor order via `@Order` — there is no user-facing way to control which proxy wraps which (equivalent to Spring's `@EnableCaching(order=N)` / `@EnableMethodSecurity(order=N)`); expose `lumen.cache.proxy-order` and `lumen.security.method.proxy-order` properties that each module reads during `init()` and passes to `container.addPostProcessor()` |
+| `@CacheEvict` does not support multiple cache names | `value` is a single `String` — evicting two caches in one annotation is impossible; add `@Repeatable` + `@CacheEvicts` container and update `CacheProcessor` to handle it |
+| Cache key collision across methods sharing the same cache name | When two `@Cacheable` methods on the same cache use overlapping key expressions (e.g., `findByProject(key="#projectId")` and `findById(key="#id")` both in `"tasks"`), a key value present in both causes a `ClassCastException` on retrieval; Spring avoids this by including the method signature in the default key — Lumen should do the same when an explicit `key` is not provided, or at minimum warn on type mismatch at cache retrieval |
+| WebSocket security filter ordering — `WsFilter` runs before `LumenSecurityFilter` | `WsSci` is registered before `LumenServletContainerInitializer`, so `WsFilter` intercepts WS upgrade requests before the JWT filter runs — `SecurityContextHolder` is empty when `modifyHandshake()` is called, leaving `session.getPrincipal()` null; fix requires a three-phase SCI boot: LumenSCI (filters) → WsSci → deferred SCI (WebSocket endpoint registration) using a `DeferredLumenInitializer` marker interface |
 
 ---
 

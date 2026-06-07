@@ -7,6 +7,7 @@ import io.lumen.core.component.injection.InjectionStep;
 import io.lumen.core.component.injection.SetterInjectionStep;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -14,10 +15,16 @@ import java.util.List;
  */
 public class DefaultLightCreator {
 
+    private record OrderedEntry(int order, int index, LightProcessor processor) {}
+
+    private static final Comparator<OrderedEntry> ENTRY_ORDER =
+            Comparator.comparingInt(OrderedEntry::order).thenComparingInt(OrderedEntry::index);
+
     private final CompositeLightInstantiator instantiator;
     private final List<InjectionStep> injectionSteps;
     private final List<LightProcessor> preProcessors;
-    private final List<LightProcessor> postProcessors;
+    private final List<OrderedEntry> postProcessors;
+    private int nextPostProcessorIndex = 0;
 
     public DefaultLightCreator(
             CompositeLightInstantiator instantiator
@@ -38,7 +45,12 @@ public class DefaultLightCreator {
     }
 
     public void addPostProcessor(LightProcessor processor) {
-        postProcessors.add(processor);
+        addPostProcessor(processor, Integer.MAX_VALUE);
+    }
+
+    public void addPostProcessor(LightProcessor processor, int order) {
+        postProcessors.add(new OrderedEntry(order, nextPostProcessorIndex++, processor));
+        postProcessors.sort(ENTRY_ORDER);
     }
 
     public List<LightProcessor> getPreProcessors() {
@@ -46,7 +58,7 @@ public class DefaultLightCreator {
     }
 
     public List<LightProcessor> getPostProcessors() {
-        return postProcessors;
+        return postProcessors.stream().map(OrderedEntry::processor).toList();
     }
 
     public void create(LightInstance light, LightContainer container) {
@@ -64,8 +76,8 @@ public class DefaultLightCreator {
             for (InjectionStep step : injectionSteps)
                 step.inject(instance, light, container);
 
-            for (LightProcessor p : postProcessors)
-                instance = p.afterInstantiation(light, instance);
+            for (OrderedEntry entry : postProcessors)
+                instance = entry.processor().afterInstantiation(light, instance);
 
             light.setInstance(instance);
             light.setState(LightInstance.LightState.READY);
@@ -83,8 +95,8 @@ public class DefaultLightCreator {
         for (InjectionStep step : injectionSteps)
             step.inject(instance, light, container);
 
-        for (LightProcessor p : postProcessors)
-            instance = p.afterInstantiation(light, instance);
+        for (OrderedEntry entry : postProcessors)
+            instance = entry.processor().afterInstantiation(light, instance);
 
         return instance;
     }
