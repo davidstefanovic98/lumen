@@ -14,6 +14,7 @@ import io.lumen.web.context.ControllerAdviceProcessor;
 import io.lumen.web.context.ControllerProcessor;
 import io.lumen.web.context.WebLumenInitializer;
 import io.lumen.web.cors.CorsConfiguration;
+import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
 import io.lumen.web.filter.CorsFilter;
 import io.lumen.web.filter.LoggingFilter;
@@ -30,12 +31,14 @@ public class LumenWebModule implements LumenModule {
         CompositeMethodArgumentResolver argumentResolver = new CompositeMethodArgumentResolver();
 
         ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
-        RouteInvoker invoker = new RouteInvoker(converterRegistry, argumentResolver);
+        CompositeExceptionResolver exceptionResolver = new CompositeExceptionResolver(adviceRegistry, converterRegistry);
+        RouteInvoker invoker = new RouteInvoker(converterRegistry, argumentResolver, exceptionResolver);
 
         container.registerExternalInstance(RouteRegistry.class, registry);
         container.registerExternalInstance(HttpMessageConverterRegistry.class, converterRegistry);
         container.registerExternalInstance(CompositeMethodArgumentResolver.class, argumentResolver);
         container.registerExternalInstance(ControllerAdviceRegistry.class, adviceRegistry);
+        container.registerExternalInstance(CompositeExceptionResolver.class, exceptionResolver);
         container.registerExternalInstance(RouteInvoker.class, invoker);
 
         container.addPostProcessor(new ControllerProcessor(registry));

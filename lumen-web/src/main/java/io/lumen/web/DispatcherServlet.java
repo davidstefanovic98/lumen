@@ -6,9 +6,7 @@ import io.lumen.web.exception.HttpMediaTypeNotAcceptableException;
 import io.lumen.web.exception.HttpMediaTypeNotSupportedException;
 import io.lumen.web.exception.NotFoundException;
 import io.lumen.web.exception.handle.CompositeExceptionResolver;
-import io.lumen.web.exception.handle.ControllerAdviceRegistry;
 import io.lumen.web.flash.FlashMapManager;
-import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.http.HttpMethod;
 import io.lumen.web.resource.ResourceProvider;
 import io.lumen.web.resource.StaticResourceResultHandler;
@@ -30,8 +28,7 @@ public class DispatcherServlet extends HttpServlet {
     private final StaticResourceResultHandler resourceHandler;
 
     public DispatcherServlet(RouteRegistry registry,
-                             ControllerAdviceRegistry adviceRegistry,
-                             HttpMessageConverterRegistry converterRegistry,
+                             CompositeExceptionResolver exceptionResolver,
                              RouteInvoker invoker,
                              ResourceProvider resourceProvider,
                              StaticResourceResultHandler resourceHandler) {
@@ -39,7 +36,7 @@ public class DispatcherServlet extends HttpServlet {
         this.invoker = invoker;
         this.resourceProvider = resourceProvider;
         this.resourceHandler = resourceHandler;
-        this.exceptionResolver = new CompositeExceptionResolver(adviceRegistry, converterRegistry);
+        this.exceptionResolver = exceptionResolver;
         logger.debug("DispatcherServlet initialized with {} routes", registry.getRouteCount());
     }
 

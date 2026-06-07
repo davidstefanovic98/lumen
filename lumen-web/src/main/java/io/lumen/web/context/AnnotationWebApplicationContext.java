@@ -7,7 +7,7 @@ import io.lumen.core.logging.LoggerFactory;
 import io.lumen.web.DispatcherServlet;
 import io.lumen.web.RouteInvoker;
 import io.lumen.web.RouteRegistry;
-import io.lumen.web.exception.handle.ControllerAdviceRegistry;
+import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.filter.LumenFilter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.multipart.MultipartConfig;
@@ -162,8 +162,7 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
 
         DispatcherServlet dispatcher = new DispatcherServlet(
                 internals.getLightByType(RouteRegistry.class),
-                internals.getLightByType(ControllerAdviceRegistry.class),
-                internals.getLightByType(HttpMessageConverterRegistry.class),
+                internals.getLightByType(CompositeExceptionResolver.class),
                 internals.getLightByType(RouteInvoker.class),
                 internals.getLightByType(ResourceProvider.class),
                 internals.getLightByType(StaticResourceResultHandler.class)
