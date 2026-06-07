@@ -23,11 +23,15 @@ public class MethodSecurityProcessor implements LightProcessor {
     }
 
     private boolean hasSecurityAnnotation(Class<?> type) {
-        if (type.isAnnotationPresent(PreAuthorize.class))  return true;
-        if (type.isAnnotationPresent(PostAuthorize.class)) return true;
-        for (Method m : type.getDeclaredMethods()) {
-            if (m.isAnnotationPresent(PreAuthorize.class))  return true;
-            if (m.isAnnotationPresent(PostAuthorize.class)) return true;
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            if (current.isAnnotationPresent(PreAuthorize.class))  return true;
+            if (current.isAnnotationPresent(PostAuthorize.class)) return true;
+            for (Method m : current.getDeclaredMethods()) {
+                if (m.isAnnotationPresent(PreAuthorize.class))  return true;
+                if (m.isAnnotationPresent(PostAuthorize.class)) return true;
+            }
+            current = current.getSuperclass();
         }
         return false;
     }

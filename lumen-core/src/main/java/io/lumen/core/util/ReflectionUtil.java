@@ -65,6 +65,28 @@ public class ReflectionUtil {
         return Object.class;
     }
 
+    /**
+     * Finds an annotation on a method by walking up the class hierarchy.
+     * ByteBuddy-generated proxy override methods carry no annotations, so a plain
+     * {@code method.getAnnotation()} call will miss annotations declared on the
+     * original class. This method resolves through superclasses until it finds the
+     * annotation at method level, then falls back to class level at each step.
+     */
+    public static <A extends Annotation> A findAnnotation(Method method, Class<A> annotationType) {
+        Class<?> current = method.getDeclaringClass();
+        while (current != null && current != Object.class) {
+            try {
+                Method declared = current.getDeclaredMethod(method.getName(), method.getParameterTypes());
+                A ann = declared.getAnnotation(annotationType);
+                if (ann != null) return ann;
+            } catch (NoSuchMethodException ignored) {}
+            A classAnn = current.getAnnotation(annotationType);
+            if (classAnn != null) return classAnn;
+            current = current.getSuperclass();
+        }
+        return null;
+    }
+
     public static boolean hasAnnotation(Method method, Class<? extends Annotation> annotation) {
         return hasAnnotation(method, annotation, new HashSet<>());
     }

@@ -125,5 +125,6 @@
         <module>lumen-boot-actuator</module>
         <module>lumen-boot-starter-actuator</module>
         <module>lumen-gleam</module>
+        <module>lumen-integration-tests</module>
     </modules>
 </project>
