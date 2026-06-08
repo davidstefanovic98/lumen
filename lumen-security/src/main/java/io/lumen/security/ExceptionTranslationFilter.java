@@ -16,9 +16,11 @@ import java.io.IOException;
 public class ExceptionTranslationFilter extends OncePerRequestFilter {
 
     private final String loginPage;
+    private final boolean formLoginEnabled;
 
-    public ExceptionTranslationFilter(String loginPage) {
+    public ExceptionTranslationFilter(String loginPage, boolean formLoginEnabled) {
         this.loginPage = loginPage;
+        this.formLoginEnabled = formLoginEnabled;
     }
 
     @Override
@@ -45,10 +47,10 @@ public class ExceptionTranslationFilter extends OncePerRequestFilter {
         boolean isApi = isApiRequest(request);
 
         if (auth == null || !auth.isAuthenticated()) {
-            if (isApi) {
-                sendJson(response, HttpStatus.UNAUTHORIZED.value(), "Unauthorized", "Authentication required");
-            } else {
+            if (formLoginEnabled && !isApi) {
                 response.sendRedirect(loginPage);
+            } else {
+                sendJson(response, HttpStatus.UNAUTHORIZED.value(), "Unauthorized", "Authentication required");
             }
         } else {
             if (isApi) {

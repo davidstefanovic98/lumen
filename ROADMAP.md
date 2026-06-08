@@ -12,7 +12,6 @@ Small bug fixes and non-breaking improvements that can ship at any time.
 
 | Item | Notes |
 |---|---|
-| `ExceptionTranslationFilter` returns 401 for unauthenticated API requests | Currently redirects to `/login` (Spring form-login default), which causes a 500 when no `/login` route is registered — REST APIs should receive a plain 401 response |
 | `@CacheEvict` does not support multiple cache names | `value` is a single `String` — evicting two caches in one annotation is impossible; add `@Repeatable` + `@CacheEvicts` container and update `CacheProcessor` to handle it |
 | Cache key collision across methods sharing the same cache name | When two `@Cacheable` methods on the same cache use overlapping key expressions (e.g., `findByProject(key="#projectId")` and `findById(key="#id")` both in `"tasks"`), a key value present in both causes a `ClassCastException` on retrieval; Spring avoids this by including the method signature in the default key — Lumen should do the same when an explicit `key` is not provided, or at minimum warn on type mismatch at cache retrieval |
 
