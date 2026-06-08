@@ -3,6 +3,7 @@ package io.lumen.cache;
 import io.lumen.cache.annotation.CacheEvict;
 import io.lumen.cache.annotation.CachePut;
 import io.lumen.cache.annotation.Cacheable;
+import io.lumen.cache.annotation.Caching;
 import io.lumen.core.proxy.ProxyFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,6 +95,111 @@ class CacheInterceptorTest {
         proxy.evictBeforeInvocation(); // clears before running
         proxy.findById(1L); // cache miss → call
         assertEquals(2, delegate.callCount);
+    }
+
+    // --- @Caching ---
+
+    @Test
+    void caching_evictMultipleCaches_allEntriesTrue() {
+        var svc = new CachingService();
+        var proxy = ProxyFactory.createDelegatingProxy(CachingService.class, svc,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        proxy.findTask(1L);    // warms "tasks"
+        proxy.findProject(1L); // warms "projects"
+        proxy.saveTask();      // @Caching(evict = {@CacheEvict("tasks"), @CacheEvict("projects")})
+        proxy.findTask(1L);    // miss → re-invoked
+        proxy.findProject(1L); // miss → re-invoked
+
+        assertEquals(2, svc.findTaskCount,    "tasks cache must have been cleared by @Caching evict");
+        assertEquals(2, svc.findProjectCount, "projects cache must have been cleared by @Caching evict");
+    }
+
+    @Test
+    void caching_evictMultipleNamesInOneAnnotation() {
+        var svc = new CachingService();
+        var proxy = ProxyFactory.createDelegatingProxy(CachingService.class, svc,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        proxy.findTask(1L);
+        proxy.findProject(1L);
+        proxy.saveTaskEvictBoth(); // @Caching(evict = @CacheEvict({"tasks","projects"}, allEntries=true))
+        proxy.findTask(1L);
+        proxy.findProject(1L);
+
+        assertEquals(2, svc.findTaskCount);
+        assertEquals(2, svc.findProjectCount);
+    }
+
+    @Test
+    void caching_cacheableHitSkipsInvocation() {
+        var svc = new CachingService();
+        var proxy = ProxyFactory.createDelegatingProxy(CachingService.class, svc,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        proxy.findTaskCacheable(1L); // miss — invoked, stored
+        proxy.findTaskCacheable(1L); // hit — not invoked
+
+        assertEquals(1, svc.findTaskCount);
+    }
+
+    @Test
+    void caching_mixedEvictAndCacheable() {
+        var svc = new CachingService();
+        var proxy = ProxyFactory.createDelegatingProxy(CachingService.class, svc,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        // Prime the cacheable cache
+        proxy.findTaskCacheable(5L);
+        assertEquals(1, svc.findTaskCount);
+
+        // update() uses @Caching: evicts "tasks-backup" AND puts into "tasks" cache
+        proxy.updateTask(5L, "updated");
+        String result = proxy.findTaskCacheable(5L); // should hit "tasks" cache with new value
+        assertEquals("updated-task-5", result);
+        assertEquals(1, svc.findTaskCount, "findTaskCacheable must not be re-invoked — @CachePut in @Caching updated the cache");
+    }
+
+    // --- fixtures ---
+
+    static class CachingService {
+        int findTaskCount = 0;
+        int findProjectCount = 0;
+
+        @Cacheable(value = "tasks", key = "#id")
+        public String findTask(Long id) {
+            findTaskCount++;
+            return "task-" + id;
+        }
+
+        @Cacheable(value = "tasks", key = "#id")
+        public String findTaskCacheable(Long id) {
+            findTaskCount++;
+            return "task-" + id;
+        }
+
+        @Cacheable(value = "projects", key = "#id")
+        public String findProject(Long id) {
+            findProjectCount++;
+            return "project-" + id;
+        }
+
+        @Caching(evict = {
+            @CacheEvict(value = "tasks", allEntries = true),
+            @CacheEvict(value = "projects", allEntries = true)
+        })
+        public void saveTask() {}
+
+        @Caching(evict = @CacheEvict(value = {"tasks", "projects"}, allEntries = true))
+        public void saveTaskEvictBoth() {}
+
+        @Caching(
+            evict = @CacheEvict(value = "tasks-backup", allEntries = true),
+            put   = @CachePut(value = "tasks", key = "#id")
+        )
+        public String updateTask(Long id, String name) {
+            return name + "-task-" + id;
+        }
     }
 
     // --- key collision guard ---
