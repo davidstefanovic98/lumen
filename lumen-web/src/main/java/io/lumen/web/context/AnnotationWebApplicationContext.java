@@ -1,6 +1,7 @@
 package io.lumen.web.context;
 
 import io.lumen.context.AnnotationApplicationContext;
+import io.lumen.core.DeferredLumenInitializer;
 import io.lumen.core.LumenInitializer;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
@@ -60,8 +61,9 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
 
         try {
             webServer = new WebServer(resolvedPort);
-            tryRegisterWebSocketSCI(webServer);
             webServer.addSCI(new LumenServletContainerInitializer(this));
+            tryRegisterWebSocketSCI(webServer);
+            webServer.addSCI(new DeferredLumenServletContainerInitializer(this));
             webServer.start();
             started = true;
 
@@ -95,12 +97,26 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         this.routeRegistry = container.internals().getLightByType(RouteRegistry.class);
 
         container.internals().getLightsByType(LumenInitializer.class)
+                .stream()
+                .filter(i -> !(i instanceof DeferredLumenInitializer))
                 .forEach(LumenInitializer::onStartup);
 
         this.registerFilters(servletContext);
         this.registerDispatcherServlet(servletContext);
 
         logger.info("Web context initialized: {} routes registered", routeRegistry.getRouteCount());
+    }
+
+    /**
+     * Called by DeferredLumenServletContainerInitializer (phase 3), after WsSci has run
+     * and populated ServerContainer in the ServletContext.
+     */
+    public void onDeferredStartup() {
+        logger.info("Running deferred initializers (phase 3)...");
+        var container = context.getLightContainer();
+        container.internals().getLightsByType(DeferredLumenInitializer.class)
+                .forEach(DeferredLumenInitializer::onStartup);
+        logger.info("Deferred initializers complete.");
     }
 
     @Override

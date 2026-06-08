@@ -1,6 +1,6 @@
 package io.lumen.websocket.support;
 
-import io.lumen.core.LumenInitializer;
+import io.lumen.core.DeferredLumenInitializer;
 import io.lumen.core.annotation.Order;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @Order(2)
-public class WebSocketInitializer implements LumenInitializer {
+public class WebSocketInitializer implements DeferredLumenInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketInitializer.class);
 

@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.lumen</groupId>
         <artifactId>lumen-parent</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.1</version>
     </parent>
 
     <artifactId>lumen-boot-starter-data-jpa</artifactId>
@@ -16,12 +16,12 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-boot-starter</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-data</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.hibernate.orm</groupId>
