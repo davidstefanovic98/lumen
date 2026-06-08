@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.lumen</groupId>
     <artifactId>lumen-parent</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -125,5 +125,6 @@
         <module>lumen-boot-actuator</module>
         <module>lumen-boot-starter-actuator</module>
         <module>lumen-gleam</module>
+        <module>lumen-integration-tests</module>
     </modules>
 </project>

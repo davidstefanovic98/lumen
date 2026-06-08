@@ -2,7 +2,7 @@
 
 This document tracks planned improvements, new features, and known design gaps. Each item is labelled with the type of release it would require: **patch** (bug fix), **minor** (new feature, backwards compatible), or **major** (breaking change).
 
-Current stable release: **1.0.0**
+Current stable release: **1.0.1**
 
 ---
 
@@ -10,8 +10,7 @@ Current stable release: **1.0.0**
 
 Small bug fixes and non-breaking improvements that can ship at any time.
 
-| Item | Notes |
-|---|---|
+No open patch items.
 
 ---
 

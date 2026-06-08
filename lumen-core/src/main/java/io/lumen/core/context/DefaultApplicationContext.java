@@ -116,7 +116,7 @@ public class DefaultApplicationContext implements ApplicationContext {
     }
 
     private void registerDefaultProcessors() {
-        lightContainer.addPostProcessor(new ApplicationContextAwareProcessor(this));
-        lightContainer.addPostProcessor(new PostConstructProcessor());
+        lightContainer.addPostProcessor(new ApplicationContextAwareProcessor(this), Integer.MIN_VALUE);
+        lightContainer.addPostProcessor(new PostConstructProcessor(), Integer.MIN_VALUE);
     }
 }

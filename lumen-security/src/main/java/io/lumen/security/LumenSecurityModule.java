@@ -3,6 +3,7 @@ package io.lumen.security;
 import io.lumen.core.LumenModule;
 import io.lumen.core.annotation.Order;
 import io.lumen.core.component.LightContainer;
+import io.lumen.core.context.Environment;
 import io.lumen.core.task.TaskDecorator;
 import io.lumen.security.context.SecurityContextTaskDecorator;
 import io.lumen.security.manager.DaoAuthenticationProvider;
@@ -18,7 +19,12 @@ public class LumenSecurityModule implements LumenModule {
         container.register(LumenSecurityFilter.class);
         container.register(ProviderManager.class);
         container.register(DaoAuthenticationProvider.class);
-        container.addPostProcessor(new MethodSecurityProcessor());
+
+        Environment env = container.getLight(Environment.class);
+        Integer configured = env.getProperty("lumen.security.method.proxy-order", Integer.class);
+        int proxyOrder = configured != null ? configured : 0;
+
+        container.addPostProcessor(new MethodSecurityProcessor(), proxyOrder);
 
         // Propagate SecurityContext into @Async worker threads. Picked up by lumen-async as a
         // TaskDecorator if that module is present; otherwise it sits unused (no async↔security coupling).

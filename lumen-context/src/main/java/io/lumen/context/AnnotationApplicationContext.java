@@ -116,13 +116,13 @@ public class AnnotationApplicationContext implements ApplicationContext {
     }
 
     private void registerDefaultProcessors() {
-        getLightContainer().addPostProcessor(new ApplicationContextAwareProcessor(this));
-        getLightContainer().addPostProcessor(new ConfigurationPropertiesProcessor(environment));
-        getLightContainer().addPostProcessor(new PostConstructProcessor());
+        getLightContainer().addPostProcessor(new ApplicationContextAwareProcessor(this), Integer.MIN_VALUE);
+        getLightContainer().addPostProcessor(new ConfigurationPropertiesProcessor(environment), Integer.MIN_VALUE);
+        getLightContainer().addPostProcessor(new PostConstructProcessor(), Integer.MIN_VALUE);
 
         ApplicationEventMulticaster multicaster = new ApplicationEventMulticaster();
         getLightContainer().registerExternalInstance(ApplicationEventPublisher.class, multicaster);
         getLightContainer().registerExternalInstance(ApplicationEventMulticaster.class, multicaster);
-        getLightContainer().addPostProcessor(new EventListenerProcessor(multicaster));
+        getLightContainer().addPostProcessor(new EventListenerProcessor(multicaster), Integer.MIN_VALUE);
     }
 }

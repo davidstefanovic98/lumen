@@ -5,6 +5,7 @@ import io.lumen.core.component.LightInstance;
 import io.lumen.core.component.processor.LightProcessor;
 import io.lumen.core.proxy.ProxyFactory;
 import io.lumen.core.task.TaskDecorator;
+import io.lumen.core.util.ReflectionUtil;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -37,7 +38,7 @@ public class AsyncProcessor implements LightProcessor {
 
     private boolean hasAsyncMethods(Class<?> type) {
         for (Method m : type.getDeclaredMethods()) {
-            if (m.isAnnotationPresent(Async.class)) return true;
+            if (ReflectionUtil.findAnnotation(m, Async.class) != null) return true;
         }
         return false;
     }

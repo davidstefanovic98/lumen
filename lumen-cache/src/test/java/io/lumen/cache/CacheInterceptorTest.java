@@ -3,6 +3,7 @@ package io.lumen.cache;
 import io.lumen.cache.annotation.CacheEvict;
 import io.lumen.cache.annotation.CachePut;
 import io.lumen.cache.annotation.Cacheable;
+import io.lumen.cache.annotation.Caching;
 import io.lumen.core.proxy.ProxyFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -96,6 +97,169 @@ class CacheInterceptorTest {
         assertEquals(2, delegate.callCount);
     }
 
+    // --- @Caching ---
+
+    @Test
+    void caching_evictMultipleCaches_allEntriesTrue() {
+        var svc = new CachingService();
+        var proxy = ProxyFactory.createDelegatingProxy(CachingService.class, svc,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        proxy.findTask(1L);    // warms "tasks"
+        proxy.findProject(1L); // warms "projects"
+        proxy.saveTask();      // @Caching(evict = {@CacheEvict("tasks"), @CacheEvict("projects")})
+        proxy.findTask(1L);    // miss → re-invoked
+        proxy.findProject(1L); // miss → re-invoked
+
+        assertEquals(2, svc.findTaskCount,    "tasks cache must have been cleared by @Caching evict");
+        assertEquals(2, svc.findProjectCount, "projects cache must have been cleared by @Caching evict");
+    }
+
+    @Test
+    void caching_evictMultipleNamesInOneAnnotation() {
+        var svc = new CachingService();
+        var proxy = ProxyFactory.createDelegatingProxy(CachingService.class, svc,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        proxy.findTask(1L);
+        proxy.findProject(1L);
+        proxy.saveTaskEvictBoth(); // @Caching(evict = @CacheEvict({"tasks","projects"}, allEntries=true))
+        proxy.findTask(1L);
+        proxy.findProject(1L);
+
+        assertEquals(2, svc.findTaskCount);
+        assertEquals(2, svc.findProjectCount);
+    }
+
+    @Test
+    void caching_cacheableHitSkipsInvocation() {
+        var svc = new CachingService();
+        var proxy = ProxyFactory.createDelegatingProxy(CachingService.class, svc,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        proxy.findTaskCacheable(1L); // miss — invoked, stored
+        proxy.findTaskCacheable(1L); // hit — not invoked
+
+        assertEquals(1, svc.findTaskCount);
+    }
+
+    @Test
+    void caching_mixedEvictAndCacheable() {
+        var svc = new CachingService();
+        var proxy = ProxyFactory.createDelegatingProxy(CachingService.class, svc,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        // Prime the cacheable cache
+        proxy.findTaskCacheable(5L);
+        assertEquals(1, svc.findTaskCount);
+
+        // update() uses @Caching: evicts "tasks-backup" AND puts into "tasks" cache
+        proxy.updateTask(5L, "updated");
+        String result = proxy.findTaskCacheable(5L); // should hit "tasks" cache with new value
+        assertEquals("updated-task-5", result);
+        assertEquals(1, svc.findTaskCount, "findTaskCacheable must not be re-invoked — @CachePut in @Caching updated the cache");
+    }
+
+    // --- fixtures ---
+
+    static class CachingService {
+        int findTaskCount = 0;
+        int findProjectCount = 0;
+
+        @Cacheable(value = "tasks", key = "#id")
+        public String findTask(Long id) {
+            findTaskCount++;
+            return "task-" + id;
+        }
+
+        @Cacheable(value = "tasks", key = "#id")
+        public String findTaskCacheable(Long id) {
+            findTaskCount++;
+            return "task-" + id;
+        }
+
+        @Cacheable(value = "projects", key = "#id")
+        public String findProject(Long id) {
+            findProjectCount++;
+            return "project-" + id;
+        }
+
+        @Caching(evict = {
+            @CacheEvict(value = "tasks", allEntries = true),
+            @CacheEvict(value = "projects", allEntries = true)
+        })
+        public void saveTask() {}
+
+        @Caching(evict = @CacheEvict(value = {"tasks", "projects"}, allEntries = true))
+        public void saveTaskEvictBoth() {}
+
+        @Caching(
+            evict = @CacheEvict(value = "tasks-backup", allEntries = true),
+            put   = @CachePut(value = "tasks", key = "#id")
+        )
+        public String updateTask(Long id, String name) {
+            return name + "-task-" + id;
+        }
+    }
+
+    // --- key collision guard ---
+
+    @Test
+    void explicitKeyCollision_typeMismatch_evictsAndReInvokes() {
+        // Two methods share the same cache name and both use key="#id"/"#projectId"
+        // which resolve to the same Long value. The second call must not throw
+        // ClassCastException — it must detect the type mismatch, evict, and re-invoke.
+        var collisionDelegate = new CollisionService();
+        var collisionProxy = ProxyFactory.createDelegatingProxy(
+                CollisionService.class, collisionDelegate,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        // Warm cache: stores String under key Long(1)
+        String str = collisionProxy.findById(1L);
+        assertEquals("entity-1", str);
+        assertEquals(1, collisionDelegate.findByIdCount);
+
+        // Same cache, same key value → stored type is String, expected List → mismatch
+        List<String> list = collisionProxy.findByProject(1L);
+        assertEquals(List.of("project-1"), list);
+        assertEquals(1, collisionDelegate.findByProjectCount, "findByProject must be called once after evicting the mismatched entry");
+    }
+
+    @Test
+    void explicitKeyCollision_reverseOrder_typeMismatch_evictsAndReInvokes() {
+        var collisionDelegate = new CollisionService();
+        var collisionProxy = ProxyFactory.createDelegatingProxy(
+                CollisionService.class, collisionDelegate,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        // Warm cache: stores List under key Long(1)
+        collisionProxy.findByProject(1L);
+        assertEquals(1, collisionDelegate.findByProjectCount);
+
+        // Now findById expects String but cache holds List → mismatch → re-invoke
+        String result = collisionProxy.findById(1L);
+        assertEquals("entity-1", result);
+        assertEquals(1, collisionDelegate.findByIdCount, "findById must be called once after evicting the mismatched entry");
+    }
+
+    @Test
+    void defaultKey_differentMethods_neverCollide() {
+        // When no explicit key is set, the default key includes ClassName#methodName,
+        // so two no-arg methods on the same cache cannot collide.
+        var noKeyDelegate = new NoExplicitKeyService();
+        var noKeyProxy = ProxyFactory.createDelegatingProxy(
+                NoExplicitKeyService.class, noKeyDelegate,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        noKeyProxy.getConfig();
+        noKeyProxy.getSettings();
+        noKeyProxy.getConfig();  // hit
+        noKeyProxy.getSettings(); // hit
+
+        assertEquals(1, noKeyDelegate.getConfigCount);
+        assertEquals(1, noKeyDelegate.getSettingsCount);
+    }
+
     // --- @CachePut ---
 
     @Test
@@ -105,6 +269,42 @@ class CacheInterceptorTest {
         String result = proxy.findById(1L); // hit, callCount still 2
         assertEquals("updated", result);
         assertEquals(2, delegate.callCount);
+    }
+
+    // --- fixtures ---
+
+    static class CollisionService {
+        int findByIdCount = 0;
+        int findByProjectCount = 0;
+
+        @Cacheable(value = "shared", key = "#id")
+        public String findById(Long id) {
+            findByIdCount++;
+            return "entity-" + id;
+        }
+
+        @Cacheable(value = "shared", key = "#projectId")
+        public List<String> findByProject(Long projectId) {
+            findByProjectCount++;
+            return List.of("project-" + projectId);
+        }
+    }
+
+    static class NoExplicitKeyService {
+        int getConfigCount = 0;
+        int getSettingsCount = 0;
+
+        @Cacheable("config")
+        public String getConfig() {
+            getConfigCount++;
+            return "cfg";
+        }
+
+        @Cacheable("config")
+        public String getSettings() {
+            getSettingsCount++;
+            return "settings";
+        }
     }
 
     // --- service under test ---

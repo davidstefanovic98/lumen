@@ -104,7 +104,7 @@ public class HttpSecurity {
                 rules.addFirst(new AuthorizationRule(new AntPathRequestMatcher(logoutUrl), "PERMIT_ALL"));
             }
 
-            filters.add(new ExceptionTranslationFilter(loginPage));
+            filters.add(new ExceptionTranslationFilter(loginPage, formLoginEnabled));
 
             List<AuthorizationRule> allRules = new ArrayList<>(rules);
             for (SecurityRuleContributor contributor : CONTRIBUTORS) {

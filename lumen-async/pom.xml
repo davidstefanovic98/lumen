@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.lumen</groupId>
         <artifactId>lumen-parent</artifactId>
-        <version>1.0.1</version>
+        <version>1.0.2</version>
     </parent>
 
     <artifactId>lumen-async</artifactId>
@@ -21,17 +21,17 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-core</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-context</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-aop</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

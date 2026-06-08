@@ -6,6 +6,7 @@ import io.lumen.core.interceptor.MethodInvocation;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.core.task.TaskDecorator;
+import io.lumen.core.util.ReflectionUtil;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -32,7 +33,7 @@ public class AsyncInterceptor implements MethodInterceptor {
     @Override
     public Object invoke(MethodInvocation invocation) throws Throwable {
         Method method = invocation.getMethod();
-        if (!method.isAnnotationPresent(Async.class)) {
+        if (ReflectionUtil.findAnnotation(method, Async.class) == null) {
             return invocation.proceed();
         }
 

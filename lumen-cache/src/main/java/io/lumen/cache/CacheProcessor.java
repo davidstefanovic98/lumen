@@ -3,6 +3,7 @@ package io.lumen.cache;
 import io.lumen.cache.annotation.CacheEvict;
 import io.lumen.cache.annotation.CachePut;
 import io.lumen.cache.annotation.Cacheable;
+import io.lumen.cache.annotation.Caching;
 import io.lumen.core.component.LightInstance;
 import io.lumen.core.component.processor.LightProcessor;
 import io.lumen.core.proxy.ProxyFactory;
@@ -33,7 +34,8 @@ public class CacheProcessor implements LightProcessor {
             for (Method method : current.getDeclaredMethods()) {
                 if (method.isAnnotationPresent(Cacheable.class)
                         || method.isAnnotationPresent(CacheEvict.class)
-                        || method.isAnnotationPresent(CachePut.class)) {
+                        || method.isAnnotationPresent(CachePut.class)
+                        || method.isAnnotationPresent(Caching.class)) {
                     return true;
                 }
             }
