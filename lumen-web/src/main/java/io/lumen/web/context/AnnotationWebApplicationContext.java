@@ -1,13 +1,14 @@
 package io.lumen.web.context;
 
 import io.lumen.context.AnnotationApplicationContext;
+import io.lumen.core.DeferredLumenInitializer;
 import io.lumen.core.LumenInitializer;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.web.DispatcherServlet;
 import io.lumen.web.RouteInvoker;
 import io.lumen.web.RouteRegistry;
-import io.lumen.web.exception.handle.ControllerAdviceRegistry;
+import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.filter.LumenFilter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.multipart.MultipartConfig;
@@ -60,8 +61,9 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
 
         try {
             webServer = new WebServer(resolvedPort);
-            tryRegisterWebSocketSCI(webServer);
             webServer.addSCI(new LumenServletContainerInitializer(this));
+            tryRegisterWebSocketSCI(webServer);
+            webServer.addSCI(new DeferredLumenServletContainerInitializer(this));
             webServer.start();
             started = true;
 
@@ -95,12 +97,26 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         this.routeRegistry = container.internals().getLightByType(RouteRegistry.class);
 
         container.internals().getLightsByType(LumenInitializer.class)
+                .stream()
+                .filter(i -> !(i instanceof DeferredLumenInitializer))
                 .forEach(LumenInitializer::onStartup);
 
         this.registerFilters(servletContext);
         this.registerDispatcherServlet(servletContext);
 
         logger.info("Web context initialized: {} routes registered", routeRegistry.getRouteCount());
+    }
+
+    /**
+     * Called by DeferredLumenServletContainerInitializer (phase 3), after WsSci has run
+     * and populated ServerContainer in the ServletContext.
+     */
+    public void onDeferredStartup() {
+        logger.info("Running deferred initializers (phase 3)...");
+        var container = context.getLightContainer();
+        container.internals().getLightsByType(DeferredLumenInitializer.class)
+                .forEach(DeferredLumenInitializer::onStartup);
+        logger.info("Deferred initializers complete.");
     }
 
     @Override
@@ -162,14 +178,14 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
 
         DispatcherServlet dispatcher = new DispatcherServlet(
                 internals.getLightByType(RouteRegistry.class),
-                internals.getLightByType(ControllerAdviceRegistry.class),
-                internals.getLightByType(HttpMessageConverterRegistry.class),
+                internals.getLightByType(CompositeExceptionResolver.class),
                 internals.getLightByType(RouteInvoker.class),
                 internals.getLightByType(ResourceProvider.class),
                 internals.getLightByType(StaticResourceResultHandler.class)
         );
 
         var registration = servletContext.addServlet("dispatcher", dispatcher);
+        registration.setAsyncSupported(true);
         registration.addMapping("/*");
 
         var multipartConfig = container.internals().getLightByType(MultipartConfig.class);
@@ -193,6 +209,7 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
             String filterName = filter.getClass().getSimpleName();
             FilterRegistration.Dynamic registration = servletContext.addFilter(filterName, filter);
             if (registration != null) {
+                registration.setAsyncSupported(true);
                 registration.addMappingForUrlPatterns(
                         EnumSet.allOf(DispatcherType.class), true, "/*");
                 logger.info("Filter [{}] registered and mapped to /*", filterName);

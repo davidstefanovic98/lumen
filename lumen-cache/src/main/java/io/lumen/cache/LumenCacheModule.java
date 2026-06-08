@@ -3,6 +3,7 @@ package io.lumen.cache;
 import io.lumen.core.LumenModule;
 import io.lumen.core.annotation.Order;
 import io.lumen.core.component.LightContainer;
+import io.lumen.core.context.Environment;
 
 @Order(-1)
 public class LumenCacheModule implements LumenModule {
@@ -19,6 +20,10 @@ public class LumenCacheModule implements LumenModule {
             container.registerExternalInstance(CacheManager.class, cacheManager);
         }
 
-        container.addPostProcessor(new CacheProcessor(cacheManager));
+        Environment env = container.getLight(Environment.class);
+        Integer configured = env.getProperty("lumen.cache.proxy-order", Integer.class);
+        int proxyOrder = configured != null ? configured : -1;
+
+        container.addPostProcessor(new CacheProcessor(cacheManager), proxyOrder);
     }
 }

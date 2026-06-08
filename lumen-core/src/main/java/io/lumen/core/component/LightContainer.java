@@ -200,6 +200,10 @@ public class LightContainer {
         instantiator.addPostProcessor(processor);
     }
 
+    public void addPostProcessor(LightProcessor processor, int order) {
+        instantiator.addPostProcessor(processor, order);
+    }
+
     public void addPreProcessor(LightProcessor processor) {
         instantiator.addPreProcessor(processor);
     }

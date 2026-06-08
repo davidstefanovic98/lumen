@@ -51,7 +51,10 @@ public class UsernamePasswordAuthenticationToken implements Authentication {
 
     @Override
     public String getName() {
-        return principal.toString();
+        if (principal instanceof UserDetails ud) {
+            return ud.getUsername();
+        }
+        return principal != null ? principal.toString() : "";
     }
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

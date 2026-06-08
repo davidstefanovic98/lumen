@@ -2,6 +2,8 @@
 
 A lightweight, annotation-driven Java web framework inspired by Spring. Built from scratch as a reference implementation of the core patterns that make such frameworks work: dependency injection, AOP-based proxying, filter chains, and SPI-based autoconfiguration.
 
+It's a personal project, mainly done to understand the concepts of Spring.
+
 **Java 25 · Maven · ByteBuddy · Tomcat Embed · Hibernate 7**
 
 ---

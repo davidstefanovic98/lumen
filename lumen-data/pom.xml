@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.lumen</groupId>
         <artifactId>lumen-parent</artifactId>
-        <version>1.0.1</version>
+        <version>1.0.2</version>
     </parent>
 
     <artifactId>lumen-data</artifactId>
@@ -20,7 +20,7 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-core</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -31,19 +31,19 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-context</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-aop</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-web</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
             <optional>true</optional>
         </dependency>
         <dependency>

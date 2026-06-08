@@ -30,6 +30,7 @@ public class SecurityHandshakeInterceptor implements HandshakeInterceptor {
     @Override
     public void beforeHandshake(HandshakeRequest request, Map<String, Object> userProperties) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return;
 
         userProperties.put(PRINCIPAL_KEY, auth);
 

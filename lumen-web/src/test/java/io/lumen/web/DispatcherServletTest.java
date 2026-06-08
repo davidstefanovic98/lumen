@@ -1,6 +1,7 @@
 package io.lumen.web;
 
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
+import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.resource.ResourceProvider;
@@ -32,15 +33,17 @@ class DispatcherServletTest {
     @BeforeEach
     void setUp() throws Exception {
         registry = new RouteRegistry();
-        invoker = spy(new RouteInvoker(new HttpMessageConverterRegistry(), new CompositeMethodArgumentResolver()));
+        HttpMessageConverterRegistry converterRegistry = new HttpMessageConverterRegistry();
+        ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
+        invoker = spy(new RouteInvoker(converterRegistry, new CompositeMethodArgumentResolver(),
+                new CompositeExceptionResolver(adviceRegistry, converterRegistry)));
         resourceProvider = mock(ResourceProvider.class);
         when(resourceProvider.getResource(anyString())).thenReturn(null);
         when(resourceProvider.getWelcomePage()).thenReturn(null);
 
         servlet = new DispatcherServlet(
                 registry,
-                new ControllerAdviceRegistry(),
-                new HttpMessageConverterRegistry(),
+                new CompositeExceptionResolver(adviceRegistry, converterRegistry),
                 invoker,
                 resourceProvider,
                 new StaticResourceResultHandler()
