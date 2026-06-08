@@ -10,9 +10,7 @@ Current stable release: **1.0.1**
 
 Small bug fixes and non-breaking improvements that can ship at any time.
 
-| Item | Notes |
-|---|---|
-| `@CacheEvict` does not support multiple cache names | `value` is a single `String` — evicting two caches in one annotation is impossible; add `@Repeatable` + `@CacheEvicts` container and update `CacheProcessor` to handle it |
+No open patch items.
 
 ---
 
