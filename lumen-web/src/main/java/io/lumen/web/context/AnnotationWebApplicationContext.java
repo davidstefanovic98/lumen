@@ -185,6 +185,7 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         );
 
         var registration = servletContext.addServlet("dispatcher", dispatcher);
+        registration.setAsyncSupported(true);
         registration.addMapping("/*");
 
         var multipartConfig = container.internals().getLightByType(MultipartConfig.class);
@@ -208,6 +209,7 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
             String filterName = filter.getClass().getSimpleName();
             FilterRegistration.Dynamic registration = servletContext.addFilter(filterName, filter);
             if (registration != null) {
+                registration.setAsyncSupported(true);
                 registration.addMappingForUrlPatterns(
                         EnumSet.allOf(DispatcherType.class), true, "/*");
                 logger.info("Filter [{}] registered and mapped to /*", filterName);
