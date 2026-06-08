@@ -6,7 +6,7 @@
     <parent>
         <groupId>io.lumen</groupId>
         <artifactId>lumen-parent</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.1</version>
     </parent>
 
     <artifactId>lumen-integration-tests</artifactId>
@@ -21,25 +21,25 @@
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-cache</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-security</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-aop</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.lumen</groupId>
             <artifactId>lumen-core</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
