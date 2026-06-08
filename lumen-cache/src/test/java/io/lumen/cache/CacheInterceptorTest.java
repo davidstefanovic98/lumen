@@ -96,6 +96,64 @@ class CacheInterceptorTest {
         assertEquals(2, delegate.callCount);
     }
 
+    // --- key collision guard ---
+
+    @Test
+    void explicitKeyCollision_typeMismatch_evictsAndReInvokes() {
+        // Two methods share the same cache name and both use key="#id"/"#projectId"
+        // which resolve to the same Long value. The second call must not throw
+        // ClassCastException — it must detect the type mismatch, evict, and re-invoke.
+        var collisionDelegate = new CollisionService();
+        var collisionProxy = ProxyFactory.createDelegatingProxy(
+                CollisionService.class, collisionDelegate,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        // Warm cache: stores String under key Long(1)
+        String str = collisionProxy.findById(1L);
+        assertEquals("entity-1", str);
+        assertEquals(1, collisionDelegate.findByIdCount);
+
+        // Same cache, same key value → stored type is String, expected List → mismatch
+        List<String> list = collisionProxy.findByProject(1L);
+        assertEquals(List.of("project-1"), list);
+        assertEquals(1, collisionDelegate.findByProjectCount, "findByProject must be called once after evicting the mismatched entry");
+    }
+
+    @Test
+    void explicitKeyCollision_reverseOrder_typeMismatch_evictsAndReInvokes() {
+        var collisionDelegate = new CollisionService();
+        var collisionProxy = ProxyFactory.createDelegatingProxy(
+                CollisionService.class, collisionDelegate,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        // Warm cache: stores List under key Long(1)
+        collisionProxy.findByProject(1L);
+        assertEquals(1, collisionDelegate.findByProjectCount);
+
+        // Now findById expects String but cache holds List → mismatch → re-invoke
+        String result = collisionProxy.findById(1L);
+        assertEquals("entity-1", result);
+        assertEquals(1, collisionDelegate.findByIdCount, "findById must be called once after evicting the mismatched entry");
+    }
+
+    @Test
+    void defaultKey_differentMethods_neverCollide() {
+        // When no explicit key is set, the default key includes ClassName#methodName,
+        // so two no-arg methods on the same cache cannot collide.
+        var noKeyDelegate = new NoExplicitKeyService();
+        var noKeyProxy = ProxyFactory.createDelegatingProxy(
+                NoExplicitKeyService.class, noKeyDelegate,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        noKeyProxy.getConfig();
+        noKeyProxy.getSettings();
+        noKeyProxy.getConfig();  // hit
+        noKeyProxy.getSettings(); // hit
+
+        assertEquals(1, noKeyDelegate.getConfigCount);
+        assertEquals(1, noKeyDelegate.getSettingsCount);
+    }
+
     // --- @CachePut ---
 
     @Test
@@ -105,6 +163,42 @@ class CacheInterceptorTest {
         String result = proxy.findById(1L); // hit, callCount still 2
         assertEquals("updated", result);
         assertEquals(2, delegate.callCount);
+    }
+
+    // --- fixtures ---
+
+    static class CollisionService {
+        int findByIdCount = 0;
+        int findByProjectCount = 0;
+
+        @Cacheable(value = "shared", key = "#id")
+        public String findById(Long id) {
+            findByIdCount++;
+            return "entity-" + id;
+        }
+
+        @Cacheable(value = "shared", key = "#projectId")
+        public List<String> findByProject(Long projectId) {
+            findByProjectCount++;
+            return List.of("project-" + projectId);
+        }
+    }
+
+    static class NoExplicitKeyService {
+        int getConfigCount = 0;
+        int getSettingsCount = 0;
+
+        @Cacheable("config")
+        public String getConfig() {
+            getConfigCount++;
+            return "cfg";
+        }
+
+        @Cacheable("config")
+        public String getSettings() {
+            getSettingsCount++;
+            return "settings";
+        }
     }
 
     // --- service under test ---

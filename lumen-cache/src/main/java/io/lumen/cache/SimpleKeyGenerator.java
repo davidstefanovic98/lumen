@@ -11,11 +11,12 @@ public class SimpleKeyGenerator implements CacheKeyGenerator {
 
     @Override
     public Object generate(Object target, Method method, Object... params) {
+        String prefix = method.getDeclaringClass().getSimpleName() + "#" + method.getName();
         if (params.length == 0)
-            return method.getName();
+            return prefix;
         if (params.length == 1)
-            return method.getName() + ":" + params[0];
-        return method.getName() + ":" + Arrays.toString(params);
+            return prefix + ":" + params[0];
+        return prefix + ":" + Arrays.toString(params);
     }
 
     /**

@@ -21,22 +21,30 @@ class SimpleKeyGeneratorTest {
     @Test
     void generateNoArgs() throws Exception {
         Method m = Subject.class.getMethod("noArgs");
-        assertEquals("noArgs", gen.generate(null, m));
+        assertEquals("Subject#noArgs", gen.generate(null, m));
     }
 
     @Test
     void generateOneArg() throws Exception {
         Method m = Subject.class.getMethod("oneArg", Long.class);
-        assertEquals("oneArg:42", gen.generate(null, m, 42L));
+        assertEquals("Subject#oneArg:42", gen.generate(null, m, 42L));
     }
 
     @Test
     void generateMultipleArgs() throws Exception {
         Method m = Subject.class.getMethod("twoArgs", Long.class, String.class);
         String key = gen.generate(null, m, 1L, "hello").toString();
-        assertTrue(key.startsWith("twoArgs:"));
+        assertTrue(key.startsWith("Subject#twoArgs:"));
         assertTrue(key.contains("1"));
         assertTrue(key.contains("hello"));
+    }
+
+    @Test
+    void generateIncludesDeclaringClassName_preventsDefaultKeyCrossMethodCollision() throws Exception {
+        Method m1 = Subject.class.getMethod("oneArg", Long.class);
+        Method m2 = Subject.class.getMethod("twoArgs", Long.class, String.class);
+        // Two different methods with the same arg value must produce different default keys.
+        assertNotEquals(gen.generate(null, m1, 1L), gen.generate(null, m2, 1L, "x"));
     }
 
     // --- resolveKey() ---
@@ -45,7 +53,7 @@ class SimpleKeyGeneratorTest {
     void resolveKeyBlankFallsBackToGenerate() throws Exception {
         Method m = Subject.class.getMethod("oneArg", Long.class);
         Object key = gen.resolveKey("", m, null, new Object[]{99L});
-        assertEquals("oneArg:99", key);
+        assertEquals("Subject#oneArg:99", key);
     }
 
     @Test
