@@ -4,9 +4,9 @@ import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightInstance;
 import io.lumen.core.component.processor.LightProcessor;
 import io.lumen.core.proxy.ProxyFactory;
+import io.lumen.core.util.ReflectionUtil;
 import io.lumen.data.annotation.Transactional;
 
-import java.lang.reflect.Method;
 import java.util.List;
 
 public class TransactionalProcessor implements LightProcessor {
@@ -29,10 +29,6 @@ public class TransactionalProcessor implements LightProcessor {
     }
 
     private boolean needsProxy(Class<?> type) {
-        if (type.isAnnotationPresent(Transactional.class)) return true;
-        for (Method method : type.getDeclaredMethods()) {
-            if (method.isAnnotationPresent(Transactional.class)) return true;
-        }
-        return false;
+        return ReflectionUtil.hasAnnotationInHierarchy(type, Transactional.class);
     }
 }

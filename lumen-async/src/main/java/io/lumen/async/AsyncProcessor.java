@@ -7,7 +7,6 @@ import io.lumen.core.proxy.ProxyFactory;
 import io.lumen.core.task.TaskDecorator;
 import io.lumen.core.util.ReflectionUtil;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
@@ -37,9 +36,6 @@ public class AsyncProcessor implements LightProcessor {
     }
 
     private boolean hasAsyncMethods(Class<?> type) {
-        for (Method m : type.getDeclaredMethods()) {
-            if (ReflectionUtil.findAnnotation(m, Async.class) != null) return true;
-        }
-        return false;
+        return ReflectionUtil.hasAnnotationInHierarchy(type, Async.class);
     }
 }

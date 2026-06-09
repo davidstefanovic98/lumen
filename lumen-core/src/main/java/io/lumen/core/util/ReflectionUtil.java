@@ -136,6 +136,30 @@ public class ReflectionUtil {
     public static Class<?> wrapperFor(Class<?> type) {
         return PRIMITIVE_TO_WRAPPER.getOrDefault(type, type);
     }
+    
+    /**
+     * Returns {@code true} if the given class or any superclass carries any of the supplied
+     * annotations at class level or on any declared method.
+     * Use this in processors to decide whether a light needs proxying.
+     */
+    @SafeVarargs
+    public static boolean hasAnnotationInHierarchy(Class<?> type, Class<? extends Annotation>... annotationTypes) {
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            for (Class<? extends Annotation> ann : annotationTypes) {
+                if (current.isAnnotationPresent(ann)) 
+                    return true;
+            }
+            for (Method method : current.getDeclaredMethods()) {
+                for (Class<? extends Annotation> ann : annotationTypes) {
+                    if (method.isAnnotationPresent(ann)) 
+                        return true;
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return false;
+    }
 
     // ── Classloader-resilient annotation helpers ──────────────────────────────
     // exec:java and similar runners can load the same annotation class via two
