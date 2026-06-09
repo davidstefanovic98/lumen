@@ -16,6 +16,18 @@ Small bug fixes and non-breaking improvements that can ship at any time.
 | — | `lumen-data` | `TransactionalProcessor.needsProxy()` uses `getDeclaredMethods()` only — misses `@Transactional` inherited from a superclass, so subclasses are not proxied |
 | — | `lumen-web` | `DispatcherServlet.matchesMediaType()` does not handle `*/*` or `type/*` wildcards in the `Accept` header — every browser request to a `produces = "application/json"` endpoint returns 406 |
 | — | `lumen-core` | Add `ReflectionUtil.wrapperFor(Class<?>)` shared utility mapping primitive types to their wrapper types; needed by the cache fix and avoids repeating the mapping elsewhere |
+| — | `lumen-security` | `LumenSecurityModule` registers `MethodSecurityProcessor` with default proxy order `0`; CLAUDE.md and the post-processor design both require `-1` so security is outermost and cache hits still enforce `@PreAuthorize` |
+| — | `lumen-security` | `DefaultLoginPageGeneratingFilter` reads path with `request.getPathInfo()` which is `null` in embedded Tomcat (path lives in `getServletPath()`); the login page is never served |
+| — | `lumen-security` | `UsernamePasswordAuthenticationFilter.requiresAuthentication()` compares `loginUrl` against `getRequestURI()` which includes the servlet context path; form login silently breaks when deployed with a non-empty context path |
+| — | `lumen-security` | `DaoAuthenticationProvider.authenticate()` does not guard against null credentials; a missing `password` form field causes `NullPointerException` inside `BCryptPasswordEncoder.matches()` instead of `BadCredentialsException` |
+| — | `lumen-security` | `LogoutFilter.requiresLogout()` checks only the URI, not the HTTP method; a `GET /logout` (browser prefetch, linked image, attacker page) logs out the current user |
+| — | `lumen-security` | `MethodSecurityExpressionEvaluator.buildContext()` skips binding `returnObject` when the return value is `null`; `@PostAuthorize` expressions that reference `#returnObject` throw a confusing evaluation error instead of `AccessDeniedException` |
+| — | `lumen-security` | `HttpSecurity.CONTRIBUTORS` is a JVM-global static list; contributors accumulate across test cases (without explicit `clearContributors()`) and across multiple `build()` calls |
+| — | `lumen-security` | `RegexRequestMatcher` resolves path via `getPathInfo()` then `getServletPath()`; `AntPathRequestMatcher` does the opposite — the same URL can resolve to different values depending on which matcher is used |
+| — | `lumen-security` | `UsernamePasswordAuthenticationFilter.onSuccessfulAuthentication()` writes directly to the session using a hardcoded string key instead of delegating to `HttpSessionSecurityContextRepository` |
+| — | `lumen-security` | `InMemoryUserDetailsManager.users` is a plain `HashMap`; concurrent reads during request handling alongside a write during late initialisation are not safe |
+| — | `lumen-security` | `SecurityContextTaskDecorator`: `SecurityContextHolder.getContext()` never returns `null`, so the `else` branch in the `finally` block (`SecurityContextHolder.clear()`) is unreachable dead code |
+| — | `lumen-security` | `BCryptPasswordEncoder` does not validate that `logRounds` is in the BCrypt-valid range (4–31) at construction time; invalid values produce an `IllegalArgumentException` at first `encode()` call |
 
 ---
 
@@ -27,6 +39,8 @@ New features that are fully backwards compatible. Existing applications require 
 
 | Item | Release type | Notes |
 |---|---|---|
+| `hasAuthority()` in `AuthorizeRequestBuilder` | minor | HTTP filter layer can only express `hasRole()` (auto-prefixes `ROLE_`); add `hasAuthority()` / `hasAnyAuthority()` for exact-match authority rules (e.g. `SCOPE_read`) |
+| Deprecate `MethodSecurityExpressionEvaluator.check(String)` | minor | The no-arg-context overload is unused internal dead code exposed as `public` API; deprecate in a minor release and remove in the next major |
 | OAuth2 / OIDC support | minor | `lumen-boot-starter-oauth2`; `OAuth2LoginFilter`, token introspection, JWT issuer validation |
 | Remember-me authentication | minor | Cookie-based persistent login token |
 | `@ConditionalOnRole` for `@Scheduled` | minor | Skip scheduled task execution if caller has no authority |
