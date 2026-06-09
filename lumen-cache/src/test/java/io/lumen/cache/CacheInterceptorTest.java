@@ -243,6 +243,21 @@ class CacheInterceptorTest {
     }
 
     @Test
+    void primitiveReturnType_incompatibleCachedValue_evictsAndReInvokes() {
+        // Before fix: isCompatibleReturnType(long.class, "entity-1") returned true,
+        // causing ClassCastException at the call site when the JVM tried to unbox a String to long.
+        var delegate = new PrimitiveCollisionService();
+        var proxy = ProxyFactory.createDelegatingProxy(
+                PrimitiveCollisionService.class, delegate,
+                List.of(new CacheInterceptor(new SimpleCacheManager())));
+
+        proxy.findString(1L);             // stores "entity-1" under key Long(1)
+        long result = proxy.findLong(1L); // same cache + key, long return — must evict & re-invoke
+        assertEquals(1L, result);
+        assertEquals(1, delegate.findLongCount, "type mismatch must be detected, entry evicted, method re-invoked");
+    }
+
+    @Test
     void defaultKey_differentMethods_neverCollide() {
         // When no explicit key is set, the default key includes ClassName#methodName,
         // so two no-arg methods on the same cache cannot collide.
@@ -287,6 +302,23 @@ class CacheInterceptorTest {
         public List<String> findByProject(Long projectId) {
             findByProjectCount++;
             return List.of("project-" + projectId);
+        }
+    }
+
+    static class PrimitiveCollisionService {
+        int findStringCount = 0;
+        int findLongCount = 0;
+
+        @Cacheable(value = "prim", key = "#id")
+        public String findString(Long id) {
+            findStringCount++;
+            return "entity-" + id;
+        }
+
+        @Cacheable(value = "prim", key = "#id")
+        public long findLong(Long id) {
+            findLongCount++;
+            return id;
         }
     }
 

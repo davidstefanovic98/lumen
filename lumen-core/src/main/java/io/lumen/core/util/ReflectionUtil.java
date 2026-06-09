@@ -5,6 +5,7 @@ import io.lumen.core.exception.LightInitializationException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class ReflectionUtil {
@@ -113,6 +114,27 @@ public class ReflectionUtil {
             }
         }
         return false;
+    }
+
+    // ── Primitive / wrapper helpers ───────────────────────────────────────────
+
+    private static final Map<Class<?>, Class<?>> PRIMITIVE_TO_WRAPPER = Map.of(
+            boolean.class, Boolean.class,
+            byte.class,    Byte.class,
+            char.class,    Character.class,
+            short.class,   Short.class,
+            int.class,     Integer.class,
+            long.class,    Long.class,
+            float.class,   Float.class,
+            double.class,  Double.class
+    );
+
+    /**
+     * Returns the wrapper type for a primitive, or the type itself if it is not primitive.
+     * e.g. {@code long.class → Long.class}, {@code String.class → String.class}.
+     */
+    public static Class<?> wrapperFor(Class<?> type) {
+        return PRIMITIVE_TO_WRAPPER.getOrDefault(type, type);
     }
 
     // ── Classloader-resilient annotation helpers ──────────────────────────────
