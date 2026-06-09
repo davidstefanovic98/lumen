@@ -2,7 +2,7 @@
 
 This document tracks planned improvements, new features, and known design gaps. Each item is labelled with the type of release it would require: **patch** (bug fix), **minor** (new feature, backwards compatible), or **major** (breaking change).
 
-Current stable release: **1.0.1**
+Current stable release: **1.0.2**
 
 ---
 
@@ -10,7 +10,12 @@ Current stable release: **1.0.1**
 
 Small bug fixes and non-breaking improvements that can ship at any time.
 
-No open patch items.
+| # | Module | Description |
+|---|---|---|
+| — | `lumen-cache` | `CacheInterceptor.isCompatibleReturnType()` always returns `true` for primitive return types — a key collision storing e.g. a `String` under the same key as a `long`-returning method bypasses the mismatch check and causes a `ClassCastException` at the call site |
+| — | `lumen-data` | `TransactionalProcessor.needsProxy()` uses `getDeclaredMethods()` only — misses `@Transactional` inherited from a superclass, so subclasses are not proxied |
+| — | `lumen-web` | `DispatcherServlet.matchesMediaType()` does not handle `*/*` or `type/*` wildcards in the `Accept` header — every browser request to a `produces = "application/json"` endpoint returns 406 |
+| — | `lumen-core` | Add `ReflectionUtil.wrapperFor(Class<?>)` shared utility mapping primitive types to their wrapper types; needed by the cache fix and avoids repeating the mapping elsewhere |
 
 ---
 
