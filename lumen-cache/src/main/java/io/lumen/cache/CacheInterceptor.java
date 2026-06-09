@@ -128,8 +128,7 @@ public class CacheInterceptor implements MethodInterceptor {
     }
 
     private static boolean isCompatibleReturnType(Class<?> returnType, Object value) {
-        if (returnType.isPrimitive()) return true;
-        return returnType.isInstance(value);
+        return ReflectionUtil.wrapperFor(returnType).isInstance(value);
     }
 
     // --- @CacheEvict ---
