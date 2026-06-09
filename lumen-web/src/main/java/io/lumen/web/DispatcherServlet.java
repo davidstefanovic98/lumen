@@ -121,7 +121,11 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     private boolean matchesMediaType(String headerValue, String[] supportedTypes) {
-        return Arrays.stream(supportedTypes).anyMatch(headerValue::contains);
+        if (headerValue.contains("*/*")) return true;
+        return Arrays.stream(supportedTypes).anyMatch(type -> {
+            String majorType = type.contains("/") ? type.substring(0, type.indexOf('/')) : type;
+            return headerValue.contains(majorType + "/*") || headerValue.contains(type);
+        });
     }
 
     private String unquote(String str) {
