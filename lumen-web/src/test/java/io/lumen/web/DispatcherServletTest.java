@@ -86,6 +86,66 @@ class DispatcherServletTest {
         verify(response).setStatus(404);
     }
 
+    private void registerProducingRoute(String pattern, String produces) throws Exception {
+        Object controller = new FakeController();
+        Method method = FakeController.class.getMethod("handle");
+        Route route = new Route(controller, method, "GET", pattern);
+        route.setProduces(new String[]{produces});
+        registry.register(route);
+    }
+
+    @Test
+    void wildcardAccept_doesNotCause406() throws Exception {
+        registerProducingRoute("/api/data", "application/json");
+        when(request.getRequestURI()).thenReturn("/api/data");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Accept")).thenReturn("*/*");
+        doNothing().when(invoker).invokeAndWrite(any(), any(), any());
+
+        servlet.service(request, response);
+
+        verify(invoker).invokeAndWrite(any(RouteMatch.class), eq(request), eq(response));
+    }
+
+    @Test
+    void browserAcceptHeader_doesNotCause406() throws Exception {
+        registerProducingRoute("/api/items", "application/json");
+        when(request.getRequestURI()).thenReturn("/api/items");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Accept")).thenReturn(
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+        doNothing().when(invoker).invokeAndWrite(any(), any(), any());
+
+        servlet.service(request, response);
+
+        verify(invoker).invokeAndWrite(any(RouteMatch.class), eq(request), eq(response));
+    }
+
+    @Test
+    void subtypeWildcardAccept_doesNotCause406() throws Exception {
+        registerProducingRoute("/api/text", "text/plain");
+        when(request.getRequestURI()).thenReturn("/api/text");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Accept")).thenReturn("text/*");
+        doNothing().when(invoker).invokeAndWrite(any(), any(), any());
+
+        servlet.service(request, response);
+
+        verify(invoker).invokeAndWrite(any(RouteMatch.class), eq(request), eq(response));
+    }
+
+    @Test
+    void incompatibleAcceptHeader_causes406() throws Exception {
+        registerProducingRoute("/api/strict", "application/json");
+        when(request.getRequestURI()).thenReturn("/api/strict");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getHeader("Accept")).thenReturn("text/html");
+
+        servlet.service(request, response);
+
+        verify(response).setStatus(406);
+    }
+
     @Test
     void trailingSlashStripped_routeStillMatches() throws Exception {
         registerRoute("GET", "/users");
