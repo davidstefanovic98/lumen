@@ -7,8 +7,8 @@ import io.lumen.cache.annotation.Caching;
 import io.lumen.core.component.LightInstance;
 import io.lumen.core.component.processor.LightProcessor;
 import io.lumen.core.proxy.ProxyFactory;
+import io.lumen.core.util.ReflectionUtil;
 
-import java.lang.reflect.Method;
 import java.util.List;
 
 public class CacheProcessor implements LightProcessor {
@@ -29,18 +29,7 @@ public class CacheProcessor implements LightProcessor {
     }
 
     private boolean hasCacheAnnotation(Class<?> type) {
-        Class<?> current = type;
-        while (current != null && current != Object.class) {
-            for (Method method : current.getDeclaredMethods()) {
-                if (method.isAnnotationPresent(Cacheable.class)
-                        || method.isAnnotationPresent(CacheEvict.class)
-                        || method.isAnnotationPresent(CachePut.class)
-                        || method.isAnnotationPresent(Caching.class)) {
-                    return true;
-                }
-            }
-            current = current.getSuperclass();
-        }
-        return false;
+        return ReflectionUtil.hasAnnotationInHierarchy(type,
+                Cacheable.class, CacheEvict.class, CachePut.class, Caching.class);
     }
 }

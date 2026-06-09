@@ -346,6 +346,25 @@ class TransactionalTest {
     }
 
     @Test
+    void processor_wrapsSubclassWhoseParentHasTransactionalMethod() {
+        // Before fix: getDeclaredMethods() only scanned the subclass itself, missing
+        // @Transactional declared on the parent — subclass was not proxied.
+        DefaultApplicationContext ctx = new DefaultApplicationContext();
+        ctx.registerInstance("transactionManager", new FakeTransactionManager(fakeEm));
+        ctx.getLightContainer().addPostProcessor(new TransactionalProcessor(ctx.getLightContainer()));
+        ctx.register(SubGreeterImpl.class);
+        ctx.initialize();
+
+        SubGreeterImpl svc = ctx.getLight(SubGreeterImpl.class);
+        assertNotSame(SubGreeterImpl.class, svc.getClass(), "subclass must be proxied via inherited @Transactional");
+
+        fakeEm.tx.reset();
+        svc.greet("Lumen");
+        assertEquals(1, fakeEm.tx.begins,  "inherited @Transactional method must open a transaction");
+        assertEquals(1, fakeEm.tx.commits, "inherited @Transactional method must commit");
+    }
+
+    @Test
     void processor_doesNotWrapNonTransactionalBean() {
         DefaultApplicationContext ctx = new DefaultApplicationContext();
         ctx.registerInstance("transactionManager", new FakeTransactionManager(fakeEm));
@@ -360,6 +379,11 @@ class TransactionalTest {
 
     static class PlainService {
         public String doWork() { return "done"; }
+    }
+
+    static class SubGreeterImpl extends GreeterImpl {
+        // inherits @Transactional greet() from GreeterImpl — no annotations on this class
+        public String extra() { return "extra"; }
     }
 
     // ── Fake EntityManagerFactory for JpaTransactionManager tests ─────────────
