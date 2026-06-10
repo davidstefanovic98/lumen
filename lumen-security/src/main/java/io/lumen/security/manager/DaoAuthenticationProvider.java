@@ -23,6 +23,10 @@ public class DaoAuthenticationProvider implements AuthenticationProvider {
         String username = authentication.getName();
         String password = (String) authentication.getCredentials();
 
+        if (username == null || password == null) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
+
         UserDetails user = userDetailsService.loadUserByUsername(username);
 
         if (passwordEncoder.matches(password, user.getPassword())) {
@@ -33,7 +37,7 @@ public class DaoAuthenticationProvider implements AuthenticationProvider {
             );
         }
 
-        throw new BadCredentialsException("Invalid password");
+        throw new BadCredentialsException("Invalid credentials");
     }
 
     @Override
