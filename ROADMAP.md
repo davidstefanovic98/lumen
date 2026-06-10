@@ -10,7 +10,6 @@ Current stable release: **1.0.2**
 
 Small bug fixes and non-breaking improvements that can ship at any time.
 
-<<<<<<< Updated upstream
 | # | Module | Description |
 |---|---|---|
 | — | `lumen-security` | ~~`LumenSecurityModule` registers `MethodSecurityProcessor` with default proxy order `0`; CLAUDE.md and the post-processor design both require `-1` so security is outermost and cache hits still enforce `@PreAuthorize`~~ |
