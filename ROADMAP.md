@@ -12,8 +12,8 @@ Small bug fixes and non-breaking improvements that can ship at any time.
 
 | # | Module | Description |
 |---|---|---|
-| — | `lumen-security` | `LumenSecurityModule` registers `MethodSecurityProcessor` with default proxy order `0`; CLAUDE.md and the post-processor design both require `-1` so security is outermost and cache hits still enforce `@PreAuthorize` |
-| — | `lumen-security` | `DefaultLoginPageGeneratingFilter` reads path with `request.getPathInfo()` which is `null` in embedded Tomcat (path lives in `getServletPath()`); the login page is never served |
+| — | `lumen-security` | ~~`LumenSecurityModule` registers `MethodSecurityProcessor` with default proxy order `0`; CLAUDE.md and the post-processor design both require `-1` so security is outermost and cache hits still enforce `@PreAuthorize`~~ |
+| — | `lumen-security` | ~~`DefaultLoginPageGeneratingFilter` reads path with `request.getPathInfo()` which is `null` in embedded Tomcat (path lives in `getServletPath()`); the login page is never served~~ *(fixed in #35)* |
 | — | `lumen-security` | `UsernamePasswordAuthenticationFilter.requiresAuthentication()` compares `loginUrl` against `getRequestURI()` which includes the servlet context path; form login silently breaks when deployed with a non-empty context path |
 | — | `lumen-security` | `DaoAuthenticationProvider.authenticate()` does not guard against null credentials; a missing `password` form field causes `NullPointerException` inside `BCryptPasswordEncoder.matches()` instead of `BadCredentialsException` |
 | — | `lumen-security` | `LogoutFilter.requiresLogout()` checks only the URI, not the HTTP method; a `GET /logout` (browser prefetch, linked image, attacker page) logs out the current user |
@@ -47,7 +47,7 @@ Small bug fixes and non-breaking improvements that can ship at any time.
 | — | `lumen-data` | `JpaTransactionManager.applyIsolation()` calls `Connection.setTransactionIsolation()` which permanently modifies the JDBC connection; when the connection is returned to the pool it retains the non-default isolation level for future transactions |
 | — | `lumen-data` | `LumenDataModule.configureJpa()` forwards `lumen.jpa.ddl-auto` to Hibernate without validation; an invalid or dangerous value (e.g. `drop-and-create`) fails silently or destroys schema with no framework-level warning |
 | — | `lumen-data` | `NameResolvingQueryParser.validatePropertyPath()` resolves segments using `getDeclaredField()` on the field's declared type; Hibernate proxy or `@Embedded` association types cause the lookup to fail even when the JPQL path is valid |
-| — | `lumen-data` | `ObjectBinder.classFieldCache` is a JVM-static `ConcurrentHashMap`; in hot-reload or custom classloader scenarios, stale `Field[]` from the old class version remain cached and references to them fail or reflect incorrect state |
+| — | `lumen-data` | `ObjectBinder.classFieldCache` is a JVM-static `ConcurrentHashMap`; in hot-reload or custom classloader scenarios, stale `Field[]` from the old class version remain cached and references to them fail or reflect incorrect state | |
 
 
 ## Version 1.x — Minor releases
