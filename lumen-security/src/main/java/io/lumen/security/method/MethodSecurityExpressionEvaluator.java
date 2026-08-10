@@ -64,10 +64,8 @@ public final class MethodSecurityExpressionEvaluator {
             }
         }
 
-        // Expose return value for @PostAuthorize
-        if (returnValue != null) {
-            ctx.setVariable("returnObject", returnValue);
-        }
+        // Expose return value for @PostAuthorize (always bound, may be null)
+        ctx.setVariable("returnObject", returnValue);
 
         // Expose authentication object
         if (auth != null) {

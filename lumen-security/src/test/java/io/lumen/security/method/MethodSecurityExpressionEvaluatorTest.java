@@ -236,6 +236,34 @@ class MethodSecurityExpressionEvaluatorTest {
                 MethodSecurityExpressionEvaluator.checkPost("#returnObject == 'ok'", method, new Object[]{}, "fail"));
     }
 
+    @Test
+    void checkPost_nullReturnObject_nullCheckPasses() throws NoSuchMethodException {
+        authenticate("USER");
+        Method method = Stubs.class.getMethod("transfer", String.class, Long.class);
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.checkPost("#returnObject == null", method, new Object[]{}, null));
+    }
+
+    @Test
+    void checkPost_nullReturnObject_nullGuardPattern_passes() throws NoSuchMethodException {
+        authenticate("USER");
+        Method method = Stubs.class.getMethod("transfer", String.class, Long.class);
+        // Common guard: allow if result is absent, otherwise check ownership
+        assertDoesNotThrow(() ->
+                MethodSecurityExpressionEvaluator.checkPost(
+                        "#returnObject == null || #returnObject == 'alice'", method, new Object[]{}, null));
+    }
+
+    @Test
+    void checkPost_nullReturnObject_nonNullCheck_throwsAccessDeniedException() throws NoSuchMethodException {
+        authenticate("USER");
+        Method method = Stubs.class.getMethod("transfer", String.class, Long.class);
+        // Expression evaluates to false (null != 'expected') → AccessDeniedException, not an evaluation error
+        AccessDeniedException ex = assertThrows(AccessDeniedException.class, () ->
+                MethodSecurityExpressionEvaluator.checkPost("#returnObject == 'expected'", method, new Object[]{}, null));
+        assertEquals("Access denied", ex.getMessage());
+    }
+
     // --- unknown function → access denied ---
 
     @Test
