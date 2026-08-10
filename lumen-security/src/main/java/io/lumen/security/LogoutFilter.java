@@ -2,6 +2,7 @@ package io.lumen.security;
 
 import io.lumen.core.annotation.Order;
 import io.lumen.security.context.SecurityContextHolder;
+import io.lumen.web.http.HttpMethod;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,7 +33,10 @@ public class LogoutFilter extends OncePerRequestFilter {
     }
 
     private boolean requiresLogout(HttpServletRequest request) {
-        return logoutUrl.equals(request.getRequestURI());
+        if (!HttpMethod.POST.matches(request.getMethod())) return false;
+        String path = request.getPathInfo();
+        if (path == null) path = request.getServletPath();
+        return logoutUrl.equals(path);
     }
 
     private void performLogout(HttpServletRequest request, HttpServletResponse response) throws IOException {
