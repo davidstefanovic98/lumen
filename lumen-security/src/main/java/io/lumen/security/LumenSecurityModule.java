@@ -19,6 +19,7 @@ public class LumenSecurityModule implements LumenModule {
         container.register(LumenSecurityFilter.class);
         container.register(ProviderManager.class);
         container.register(DaoAuthenticationProvider.class);
+        container.register(HttpSecurity.class);
 
         Environment env = container.getLight(Environment.class);
         Integer configured = env.getProperty("lumen.security.method.proxy-order", Integer.class);

@@ -10,7 +10,14 @@ import java.util.List;
  * rule in the user's {@code authorizeRequests(...)} block takes priority and can override
  * module-provided defaults.
  *
- * <p>Register via {@link HttpSecurity#addRuleContributor(SecurityRuleContributor)}.
+ * <p>Register by adding your contributor as an external light on the {@code LightContainer}
+ * during {@code LumenModule.init()}, keyed by your contributor's own concrete class so multiple
+ * contributors of different types can coexist without colliding on the same container key:
+ * <pre>{@code
+ * container.registerExternalInstance(MyRuleContributor.class, new MyRuleContributor());
+ * }</pre>
+ * {@code HttpSecurity} gathers all {@code SecurityRuleContributor} lights via constructor
+ * injection, scoped to whichever container built it.
  */
 public interface SecurityRuleContributor {
     List<AuthorizationRule> getRules();

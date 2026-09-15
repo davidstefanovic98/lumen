@@ -1,5 +1,7 @@
 package io.lumen.security;
 
+import io.lumen.context.annotation.Scope;
+import io.lumen.core.component.ScopeType;
 import io.lumen.security.manager.AuthenticationManager;
 import io.lumen.security.repository.HttpSessionSecurityContextRepository;
 
@@ -8,118 +10,102 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * Fluent HTTP security configurer
+ *
+ * <p>Prototype-scoped: each time it is injected (e.g. as a parameter of a {@code @Light}
+ * {@code SecurityFilterChain} factory method) the container builds a fresh instance, with its
+ * own {@link AuthenticationManager} and {@link SecurityRuleContributor} lights resolved from
+ * that same container. This is what scopes contributed rules to a single application context —
+ * there is no shared static state, so nothing can leak across contexts or test cases.
+ */
+@Scope(ScopeType.PROTOTYPE)
 public class HttpSecurity {
-    private HttpSecurity() {}
 
-    private static final java.util.concurrent.CopyOnWriteArrayList<SecurityRuleContributor> CONTRIBUTORS =
-            new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final AuthenticationManager authManager;
+    private final List<SecurityRuleContributor> contributors;
+    private final List<AuthorizationRule> rules = new ArrayList<>();
 
-    /**
-     * Registers a module-level rule contributor whose rules are appended after the
-     * user's own {@code authorizeRequests} rules during {@link Builder#build()}.
-     * User rules always take priority — contributors provide overridable defaults.
-     */
-    public static void addRuleContributor(SecurityRuleContributor contributor) {
-        CONTRIBUTORS.add(contributor);
+    private boolean formLoginEnabled = false;
+    private String loginPage = "/login";
+    private String defaultSuccessUrl = "/";
+    private String failureUrl = "/login?error";
+    private boolean isCustomLoginPage = false; // Flag to skip default UI
+
+    private boolean logoutEnabled = false;
+    private String logoutUrl = "/logout";
+    private String logoutSuccessUrl = "/login?logout";
+
+    private final List<SecuritySubFilter> customFilters = new ArrayList<>();
+
+    public HttpSecurity(AuthenticationManager authManager, List<SecurityRuleContributor> contributors) {
+        this.authManager = authManager;
+        this.contributors = contributors;
     }
 
-    /** Clears all registered contributors. Intended for use in tests. */
-    public static void clearContributors() {
-        CONTRIBUTORS.clear();
+    public HttpSecurity authorizeRequests(Consumer<AuthorizeRequestBuilder> consumer) {
+        AuthorizeRequestBuilder authBuilder = new AuthorizeRequestBuilder(this.rules);
+        consumer.accept(authBuilder);
+        return this;
     }
 
-    public static Builder builder(AuthenticationManager authManager) {
-        return new Builder(authManager);
+    public HttpSecurity formLogin(Consumer<FormLoginConfigurer> consumer) {
+        this.formLoginEnabled = true;
+        FormLoginConfigurer configurer = new FormLoginConfigurer();
+        consumer.accept(configurer);
+
+        this.loginPage = configurer.loginPage;
+        this.defaultSuccessUrl = configurer.defaultSuccessUrl;
+        this.failureUrl = configurer.failureUrl;
+        this.isCustomLoginPage = configurer.customPageSet;
+        return this;
     }
 
-    public static class Builder {
-        private final AuthenticationManager authManager;
-        private final List<AuthorizationRule> rules = new ArrayList<>();
+    public HttpSecurity addFilter(SecuritySubFilter filter) {
+        this.customFilters.add(filter);
+        return this;
+    }
 
-        private boolean formLoginEnabled = false;
-        private String loginPage = "/login";
-        private String defaultSuccessUrl = "/";
-        private String failureUrl = "/login?error";
-        private boolean isCustomLoginPage = false; // Flag to skip default UI
+    public HttpSecurity logout(Consumer<LogoutConfigurer> consumer) {
+        this.logoutEnabled = true;
+        LogoutConfigurer configurer = new LogoutConfigurer();
+        consumer.accept(configurer);
+        this.logoutUrl = configurer.logoutUrl;
+        this.logoutSuccessUrl = configurer.logoutSuccessUrl;
+        return this;
+    }
 
-        private boolean logoutEnabled = false;
-        private String logoutUrl = "/logout";
-        private String logoutSuccessUrl = "/login?logout";
+    public SecurityFilterChain build() {
+        List<SecuritySubFilter> filters = new ArrayList<>();
 
-        private final List<SecuritySubFilter> customFilters = new ArrayList<>();
+        filters.add(new SecurityContextPersistenceFilter(new HttpSessionSecurityContextRepository()));
 
-        protected Builder(AuthenticationManager authManager) {
-            this.authManager = authManager;
-        }
+        if (formLoginEnabled) {
+            rules.addFirst(new AuthorizationRule(new AntPathRequestMatcher(loginPage), "PERMIT_ALL"));
 
-        public Builder authorizeRequests(Consumer<AuthorizeRequestBuilder> consumer) {
-            AuthorizeRequestBuilder authBuilder = new AuthorizeRequestBuilder(this.rules);
-            consumer.accept(authBuilder);
-            return this;
-        }
-
-        public Builder formLogin(Consumer<FormLoginConfigurer> consumer) {
-            this.formLoginEnabled = true;
-            FormLoginConfigurer configurer = new FormLoginConfigurer();
-            consumer.accept(configurer);
-
-            this.loginPage = configurer.loginPage;
-            this.defaultSuccessUrl = configurer.defaultSuccessUrl;
-            this.failureUrl = configurer.failureUrl;
-            this.isCustomLoginPage = configurer.customPageSet;
-            return this;
-        }
-
-        public Builder addFilter(SecuritySubFilter filter) {
-            this.customFilters.add(filter);
-            return this;
-        }
-
-        public Builder logout(Consumer<LogoutConfigurer> consumer) {
-            this.logoutEnabled = true;
-            LogoutConfigurer configurer = new LogoutConfigurer();
-            consumer.accept(configurer);
-            this.logoutUrl = configurer.logoutUrl;
-            this.logoutSuccessUrl = configurer.logoutSuccessUrl;
-            return this;
-        }
-
-        public SecurityFilterChain build() {
-            List<SecuritySubFilter> filters = new ArrayList<>();
-
-            filters.add(new SecurityContextPersistenceFilter(new HttpSessionSecurityContextRepository()));
-
-            if (formLoginEnabled) {
-                rules.addFirst(new AuthorizationRule(new AntPathRequestMatcher(loginPage), "PERMIT_ALL"));
-
-                if (!isCustomLoginPage) {
-                    filters.add(new DefaultLoginPageGeneratingFilter());
-                }
-
-                filters.add(new UsernamePasswordAuthenticationFilter(authManager, loginPage, defaultSuccessUrl, failureUrl));
+            if (!isCustomLoginPage) {
+                filters.add(new DefaultLoginPageGeneratingFilter());
             }
 
-            if (logoutEnabled) {
-                filters.add(new LogoutFilter(logoutUrl, logoutSuccessUrl));
-                rules.addFirst(new AuthorizationRule(new AntPathRequestMatcher(logoutUrl), "PERMIT_ALL"));
-            }
-
-            filters.add(new ExceptionTranslationFilter(loginPage, formLoginEnabled));
-
-            List<AuthorizationRule> allRules = new ArrayList<>(rules);
-            for (SecurityRuleContributor contributor : CONTRIBUTORS) {
-                allRules.addAll(contributor.getRules());
-            }
-            filters.add(new AuthorizationFilter(allRules));
-            filters.addAll(customFilters);
-            filters.sort(Comparator.comparingInt(SecuritySubFilter::getOrder));
-
-            return new SecurityFilterChain("/**", filters);
+            filters.add(new UsernamePasswordAuthenticationFilter(authManager, loginPage, defaultSuccessUrl, failureUrl));
         }
 
-        void addRule(AuthorizationRule rule) {
-            this.rules.add(rule);
+        if (logoutEnabled) {
+            filters.add(new LogoutFilter(logoutUrl, logoutSuccessUrl));
+            rules.addFirst(new AuthorizationRule(new AntPathRequestMatcher(logoutUrl), "PERMIT_ALL"));
         }
+
+        filters.add(new ExceptionTranslationFilter(loginPage, formLoginEnabled));
+
+        List<AuthorizationRule> allRules = new ArrayList<>(rules);
+        for (SecurityRuleContributor contributor : contributors) {
+            allRules.addAll(contributor.getRules());
+        }
+        filters.add(new AuthorizationFilter(allRules));
+        filters.addAll(customFilters);
+        filters.sort(Comparator.comparingInt(SecuritySubFilter::getOrder));
+
+        return new SecurityFilterChain("/**", filters);
     }
 
     public static class FormLoginConfigurer {
