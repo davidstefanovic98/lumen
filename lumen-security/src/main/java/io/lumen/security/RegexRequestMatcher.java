@@ -23,10 +23,7 @@ public class RegexRequestMatcher implements RequestMatcher {
         if (method != null && !method.matches(request.getMethod())) {
             return false;
         }
-        String path = request.getPathInfo();
-        if (path == null) {
-            path = request.getServletPath();
-        }
+        String path = RequestPaths.resolve(request);
         return pattern.matcher(path).matches();
     }
 }
