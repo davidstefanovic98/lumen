@@ -1,8 +1,8 @@
 package io.lumen.actuator;
 
+import io.lumen.core.component.LightContainer;
 import io.lumen.security.AntPathRequestMatcher;
 import io.lumen.security.AuthorizationRule;
-import io.lumen.security.HttpSecurity;
 import io.lumen.security.SecurityRuleContributor;
 
 import java.util.List;
@@ -13,6 +13,11 @@ import java.util.List;
  *
  * <p>Rules added here are appended after user-configured rules, so any explicit
  * {@code antMatchers("/actuator/**").permitAll()} in the app's security config overrides them.
+ *
+ * <p>Registered as an external light keyed by this concrete class (rather than the shared
+ * {@link SecurityRuleContributor} type) so other contributors can coexist without colliding
+ * on the same container key. {@code HttpSecurity} picks it up via constructor-injected
+ * {@code List<SecurityRuleContributor>}, scoped to this container only.
  */
 class ActuatorSecurityContributor implements SecurityRuleContributor {
 
@@ -22,8 +27,8 @@ class ActuatorSecurityContributor implements SecurityRuleContributor {
         this.basePath = basePath;
     }
 
-    static void register(String basePath) {
-        HttpSecurity.addRuleContributor(new ActuatorSecurityContributor(basePath));
+    static void register(LightContainer container, String basePath) {
+        container.registerExternalInstance(ActuatorSecurityContributor.class, new ActuatorSecurityContributor(basePath));
     }
 
     @Override

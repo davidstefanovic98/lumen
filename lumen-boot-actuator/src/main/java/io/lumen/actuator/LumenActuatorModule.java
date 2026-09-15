@@ -35,7 +35,7 @@ public class LumenActuatorModule implements LumenModule {
         if (securityEnabled) {
             try {
                 Class.forName("io.lumen.security.HttpSecurity");
-                ActuatorSecurityContributor.register(basePath);
+                ActuatorSecurityContributor.register(container, basePath);
                 logger.info("Actuator security enabled: {}/health and {}/info are open, rest requires authentication", basePath, basePath);
             } catch (ClassNotFoundException ignored) {
                 logger.debug("lumen-security not on classpath — actuator endpoints are unprotected");
