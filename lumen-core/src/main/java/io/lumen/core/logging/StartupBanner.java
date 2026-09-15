@@ -1,5 +1,7 @@
 package io.lumen.core.logging;
 
+import io.lumen.core.LumenVersion;
+
 /**
  * Prints the Lumen startup banner with a perfectly proportioned,
  * 6-line filled yellow light bulb aligned with the framework text.
@@ -12,8 +14,6 @@ public final class StartupBanner {
     private static final String GRAY          = "\u001B[90m";
     private static final String RESET         = "\u001B[0m";
     private static final String BOLD          = "\u001B[1m";
-
-    private static final String VERSION = "0.1.0-SNAPSHOT";
 
     private static final String BANNER =
             BRIGHT_YELLOW + "    ▄████▄    " + RESET + BRIGHT_WHITE + "██╗     ██╗   ██╗███╗   ███╗███████╗███╗   ██╗\n" +
@@ -28,7 +28,7 @@ public final class StartupBanner {
     private StartupBanner() {}
 
     public static void print() {
-        System.out.printf(BANNER, VERSION);
+        System.out.printf(BANNER, LumenVersion.get());
         System.out.flush();
     }
 }
