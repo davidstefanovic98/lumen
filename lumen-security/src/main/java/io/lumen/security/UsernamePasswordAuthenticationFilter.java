@@ -5,6 +5,7 @@ import io.lumen.security.authentication.Authentication;
 import io.lumen.security.authentication.UsernamePasswordAuthenticationToken;
 import io.lumen.security.context.SecurityContextHolder;
 import io.lumen.security.manager.AuthenticationManager;
+import io.lumen.security.repository.SecurityContextRepository;
 import io.lumen.web.http.HttpMethod;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,15 +18,18 @@ import java.io.IOException;
 public class UsernamePasswordAuthenticationFilter extends OncePerRequestFilter {
 
     private final AuthenticationManager authenticationManager;
+    private final SecurityContextRepository securityContextRepository;
     private final String loginUrl;
     private final String defaultSuccessUrl;
     private final String failureUrl;
 
     public UsernamePasswordAuthenticationFilter(AuthenticationManager authenticationManager,
+                                                SecurityContextRepository securityContextRepository,
                                                 String loginUrl,
                                                 String defaultSuccessUrl,
                                                 String failureUrl) {
         this.authenticationManager = authenticationManager;
+        this.securityContextRepository = securityContextRepository;
         this.loginUrl = loginUrl;
         this.defaultSuccessUrl = defaultSuccessUrl;
         this.failureUrl = failureUrl;
@@ -63,8 +67,10 @@ public class UsernamePasswordAuthenticationFilter extends OncePerRequestFilter {
     }
 
     protected void onSuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, Authentication auth) throws IOException {
-        var session = request.getSession(true);
-        session.setAttribute("LUMEN_SECURITY_CONTEXT_KEY", SecurityContextHolder.getContext());
+        // Must save through the repository before the redirect below commits the response —
+        // SecurityContextPersistenceFilter's own save (in its `finally`, after this filter
+        // returns without calling the chain) would otherwise run too late to write a session.
+        securityContextRepository.saveContext(SecurityContextHolder.getContext(), request, response);
         response.sendRedirect(defaultSuccessUrl);
     }
 

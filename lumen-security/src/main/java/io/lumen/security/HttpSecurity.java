@@ -4,6 +4,7 @@ import io.lumen.context.annotation.Scope;
 import io.lumen.core.component.ScopeType;
 import io.lumen.security.manager.AuthenticationManager;
 import io.lumen.security.repository.HttpSessionSecurityContextRepository;
+import io.lumen.security.repository.SecurityContextRepository;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -78,7 +79,8 @@ public class HttpSecurity {
     public SecurityFilterChain build() {
         List<SecuritySubFilter> filters = new ArrayList<>();
 
-        filters.add(new SecurityContextPersistenceFilter(new HttpSessionSecurityContextRepository()));
+        SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+        filters.add(new SecurityContextPersistenceFilter(securityContextRepository));
 
         if (formLoginEnabled) {
             rules.addFirst(new AuthorizationRule(new AntPathRequestMatcher(loginPage), "PERMIT_ALL"));
@@ -87,7 +89,8 @@ public class HttpSecurity {
                 filters.add(new DefaultLoginPageGeneratingFilter());
             }
 
-            filters.add(new UsernamePasswordAuthenticationFilter(authManager, loginPage, defaultSuccessUrl, failureUrl));
+            filters.add(new UsernamePasswordAuthenticationFilter(
+                    authManager, securityContextRepository, loginPage, defaultSuccessUrl, failureUrl));
         }
 
         if (logoutEnabled) {

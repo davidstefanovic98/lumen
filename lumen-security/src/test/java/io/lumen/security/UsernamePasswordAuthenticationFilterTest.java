@@ -4,11 +4,15 @@ import io.lumen.security.authentication.Authentication;
 import io.lumen.security.authentication.UsernamePasswordAuthenticationToken;
 import io.lumen.security.context.SecurityContextHolder;
 import io.lumen.security.manager.AuthenticationManager;
+import io.lumen.security.context.SecurityContext;
+import io.lumen.security.repository.HttpSessionSecurityContextRepository;
+import io.lumen.security.repository.SecurityContextRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 
@@ -18,8 +22,9 @@ import static org.mockito.Mockito.*;
 class UsernamePasswordAuthenticationFilterTest {
 
     private final AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
-    private final UsernamePasswordAuthenticationFilter filter =
-            new UsernamePasswordAuthenticationFilter(authenticationManager, "/login", "/", "/login?error");
+    private final HttpSessionSecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+    private final UsernamePasswordAuthenticationFilter filter = new UsernamePasswordAuthenticationFilter(
+            authenticationManager, securityContextRepository, "/login", "/", "/login?error");
 
     @AfterEach
     void clearContext() {
@@ -53,6 +58,31 @@ class UsernamePasswordAuthenticationFilterTest {
         verify(authenticationManager).authenticate(any());
         verify(chain, never()).doFilter(any(), any());
         assertTrue(SecurityContextHolder.getContext().getAuthentication().isAuthenticated());
+    }
+
+    // The filter must delegate the post-login save to the SecurityContextRepository abstraction
+    // (not write the session attribute itself) so a swapped repository implementation is honored.
+    @Test
+    void successfulLogin_savesThroughConfiguredRepository() throws Exception {
+        SecurityContextRepository repository = mock(SecurityContextRepository.class);
+        UsernamePasswordAuthenticationFilter filterWithMockRepo = new UsernamePasswordAuthenticationFilter(
+                authenticationManager, repository, "/login", "/", "/login?error");
+
+        HttpServletRequest req = request("/login", null, "POST");
+        when(req.getParameter("username")).thenReturn("alice");
+        when(req.getParameter("password")).thenReturn("secret");
+
+        Authentication result = new UsernamePasswordAuthenticationToken("alice", null, List.of());
+        when(authenticationManager.authenticate(any())).thenReturn(result);
+
+        HttpServletResponse resp = mock(HttpServletResponse.class);
+
+        filterWithMockRepo.doFilter(req, resp, mock(FilterChain.class));
+
+        ArgumentCaptor<SecurityContext> captor = ArgumentCaptor.forClass(SecurityContext.class);
+        verify(repository).saveContext(captor.capture(), eq(req), eq(resp));
+        assertEquals(result, captor.getValue().getAuthentication());
+        verify(resp).sendRedirect("/");
     }
 
     // Non-root context path: getRequestURI() would be "/app/login", but getServletPath() is still "/login"
@@ -104,8 +134,8 @@ class UsernamePasswordAuthenticationFilterTest {
     // Prefix-mapped DispatcherServlet (e.g. /api/*): getServletPath() = "/api", getPathInfo() = "/login"
     @Test
     void prefixMappedServlet_pathInfo_authenticates() throws Exception {
-        UsernamePasswordAuthenticationFilter prefixFilter =
-                new UsernamePasswordAuthenticationFilter(authenticationManager, "/login", "/", "/login?error");
+        UsernamePasswordAuthenticationFilter prefixFilter = new UsernamePasswordAuthenticationFilter(
+                authenticationManager, securityContextRepository, "/login", "/", "/login?error");
         HttpServletRequest req = request("/api", "/login", "POST");
         when(req.getParameter("username")).thenReturn("alice");
         when(req.getParameter("password")).thenReturn("secret");
