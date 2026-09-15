@@ -50,4 +50,25 @@
 <!--            <version>1.18.8</version>-->
         </dependency>
     </dependencies>
+
+    <build>
+        <resources>
+            <!-- lumen-version.properties carries ${project.version} into the runtime classpath so
+                 LumenVersion never needs a hand-maintained copy of the version string. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>io/lumen/core/lumen-version.properties</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>io/lumen/core/lumen-version.properties</exclude>
+                </excludes>
+            </resource>
+        </resources>
+    </build>
 </project>

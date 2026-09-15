@@ -2,6 +2,7 @@ package io.lumen.actuator;
 
 import io.lumen.actuator.health.Health;
 import io.lumen.actuator.health.HealthIndicator;
+import io.lumen.core.LumenVersion;
 import io.lumen.core.context.ApplicationContext;
 import io.lumen.core.context.ApplicationContextAware;
 import io.lumen.core.context.Environment;
@@ -66,7 +67,7 @@ public class ActuatorController implements ApplicationContextAware {
     public Map<String, Object> info() {
         Map<String, Object> result = new LinkedHashMap<>();
 
-        result.put("lumen", Map.of("version", "0.1.0-SNAPSHOT"));
+        result.put("lumen", Map.of("version", LumenVersion.get()));
 
         String appName    = environment.getProperty("lumen.application.name",
                             environment.getProperty("app.name", "lumen-application"));
