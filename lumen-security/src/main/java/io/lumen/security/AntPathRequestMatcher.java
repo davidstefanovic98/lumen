@@ -22,7 +22,7 @@ public class AntPathRequestMatcher implements RequestMatcher {
             return false;
         }
 
-        String path = getRequestPath(request);
+        String path = RequestPaths.resolve(request);
         String normalizedPattern = pattern.startsWith("/") ? pattern : "/" + pattern;
 
         if (normalizedPattern.equals("/**") || normalizedPattern.equals("/*")) {
@@ -46,30 +46,5 @@ public class AntPathRequestMatcher implements RequestMatcher {
         }
 
         return path.equals(normalizedPattern);
-    }
-
-    private String getRequestPath(HttpServletRequest request) {
-        String path = request.getServletPath();
-        if (path == null || path.isEmpty()) {
-            path = request.getPathInfo();
-        }
-
-        if (path == null || path.isEmpty()) {
-            String uri = request.getRequestURI();
-            String contextPath = request.getContextPath();
-            if (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath)) {
-                path = uri.substring(contextPath.length());
-            } else {
-                path = uri;
-            }
-        }
-
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        } else if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-
-        return path;
     }
 }
