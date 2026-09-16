@@ -1,6 +1,7 @@
 package io.lumen.web.argument;
 
 import io.lumen.web.annotation.PathVariable;
+import io.lumen.web.exception.PathVariableNotFoundException;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Parameter;
@@ -19,6 +20,9 @@ class PathVariableArgumentResolverTest {
 
     @SuppressWarnings("unused")
     static void methodWithNoAnnotationValue(@PathVariable Long id) {}
+
+    @SuppressWarnings("unused")
+    static void methodWithPrimitive(@PathVariable("count") int count) {}
 
     private Parameter param(String methodName, Class<?> type) throws Exception {
         return PathVariableArgumentResolverTest.class
@@ -53,5 +57,25 @@ class PathVariableArgumentResolverTest {
                 mock(jakarta.servlet.http.HttpServletResponse.class),
                 Map.of("id", "7"));
         assertEquals(7L, result);
+    }
+
+    @Test
+    void resolve_missingPathVariable_objectType_throwsInsteadOfSilentlyReturningNull() throws Exception {
+        Parameter p = param("methodWithNoAnnotationValue", Long.class);
+
+        assertThrows(PathVariableNotFoundException.class, () -> resolver.resolve(p,
+                mock(jakarta.servlet.http.HttpServletRequest.class),
+                mock(jakarta.servlet.http.HttpServletResponse.class),
+                Map.of()));
+    }
+
+    @Test
+    void resolve_missingPathVariable_primitiveType_throwsInsteadOfNpeOnUnboxing() throws Exception {
+        Parameter p = param("methodWithPrimitive", int.class);
+
+        assertThrows(PathVariableNotFoundException.class, () -> resolver.resolve(p,
+                mock(jakarta.servlet.http.HttpServletRequest.class),
+                mock(jakarta.servlet.http.HttpServletResponse.class),
+                Map.of()));
     }
 }

@@ -26,8 +26,8 @@ public class ControllerAdviceRegistry {
                 for (Class<? extends Throwable> exType : targetExceptions) {
                     if (exceptionLookup.containsKey(exType)) {
                         throw new IllegalStateException("Duplicate @ExceptionHandler for " + exType.getName() +
-                                ". Found in " + adviceLight.getClass().getSimpleName() + " and " +
-                                exceptionLookup.get(exType).light().getClass().getSimpleName());
+                                ". Found in " + ReflectionUtil.getUserClass(adviceLight.getClass()).getSimpleName() +
+                                " and " + ReflectionUtil.getUserClass(exceptionLookup.get(exType).light().getClass()).getSimpleName());
                     }
 
                     exceptionLookup.put(exType, new HandlerMethod(adviceLight, method));
