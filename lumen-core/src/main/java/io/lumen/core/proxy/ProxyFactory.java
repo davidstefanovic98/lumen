@@ -52,8 +52,13 @@ public class ProxyFactory {
 
     public static List<?> createLazyCollection(LightContainer container, List<LightInstance> elements) {
         return new AbstractList<>() {
-            @Override public Object get(int index) { return container.internals().getLightByName(elements.get(index).getName()); }
-            @Override public int size() { return elements.size(); }
+            @Override public Object get(int index) {
+                return container.internals().getLightByName(elements.get(index).getName());
+            }
+
+            @Override public int size() {
+                return elements.size();
+            }
         };
     }
 }

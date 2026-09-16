@@ -3,6 +3,8 @@ package io.lumen.web.context;
 import io.lumen.context.AnnotationApplicationContext;
 import io.lumen.core.DeferredLumenInitializer;
 import io.lumen.core.LumenInitializer;
+import io.lumen.core.diagnostics.PortInUseException;
+import io.lumen.core.diagnostics.StartupFailureReporter;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.web.DispatcherServlet;
@@ -76,11 +78,14 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
         } catch (Exception e) {
             Throwable root = rootCause(e);
             if (root instanceof BindException) {
+                StartupFailureReporter.report(new PortInUseException(resolvedPort, e));
                 throw new RuntimeException(
                         "Port " + resolvedPort + " is already in use. " +
                         "Change server.port in application.properties or stop the process using that port.", e);
             }
-            logger.error("Critical failure during web server startup", e);
+            if (!StartupFailureReporter.report(e)) {
+                logger.error("Critical failure during web server startup", e);
+            }
             throw new RuntimeException("Failed to start web server on port " + resolvedPort, e);
         }
     }

@@ -1,0 +1,4 @@
+io.lumen.core.diagnostics.PortInUseFailureAnalyzer
+io.lumen.core.diagnostics.CircularDependencyFailureAnalyzer
+io.lumen.core.diagnostics.MissingLightFailureAnalyzer
+io.lumen.core.diagnostics.AmbiguousLightFailureAnalyzer
