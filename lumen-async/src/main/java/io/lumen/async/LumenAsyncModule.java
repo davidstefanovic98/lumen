@@ -4,7 +4,6 @@ import io.lumen.core.LumenModule;
 import io.lumen.core.annotation.Order;
 import io.lumen.core.component.LightContainer;
 import io.lumen.core.context.Environment;
-import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.core.task.TaskDecorator;
 
@@ -13,14 +12,11 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 @Order(3)
 public class LumenAsyncModule implements LumenModule {
-
-    private static final Logger logger = LoggerFactory.getLogger(LumenAsyncModule.class);
 
     private static final AsyncUncaughtExceptionHandler DEFAULT_HANDLER = (ex, method, args) ->
             LoggerFactory.getLogger(AsyncInterceptor.class)
@@ -66,23 +62,8 @@ public class LumenAsyncModule implements LumenModule {
         container.registerExternalInstance(ScheduledTaskInitializer.class,
                 new ScheduledTaskInitializer(scheduler, scheduledTasks));
 
-        registerShutdownHook(executor, scheduler);
-    }
-
-    private void registerShutdownHook(ExecutorService executor, ScheduledExecutorService scheduler) {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            scheduler.shutdown();
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    executor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-            logger.info("Async executor shut down.");
-        }, "lumen-async-shutdown"));
+        container.registerExternalInstance(AsyncExecutorDisposable.class,
+                new AsyncExecutorDisposable(executor, scheduler));
     }
 
     private int intProp(Environment env, String key, int defaultValue) {
