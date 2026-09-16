@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import static io.lumen.core.util.ReflectionUtil.getAllMethods;
 import static io.lumen.core.util.ReflectionUtil.hasAnnotation;
 
 class ControllerScanner {
@@ -69,7 +70,7 @@ class ControllerScanner {
         String basePath = extractBasePath(type);
         boolean classIsRest = hasAnnotation(type, ResponseBody.class);
 
-        for (Method method : type.getDeclaredMethods()) {
+        for (Method method : getAllMethods(type)) {
             for (Map.Entry<Class<? extends Annotation>, MappingInfo> entry : MAPPING_ANNOTATIONS.entrySet()) {
                 if (method.isAnnotationPresent(entry.getKey())) {
                     Annotation annotation = method.getAnnotation(entry.getKey());

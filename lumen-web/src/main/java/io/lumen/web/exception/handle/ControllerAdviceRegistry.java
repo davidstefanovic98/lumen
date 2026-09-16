@@ -1,9 +1,11 @@
 package io.lumen.web.exception.handle;
 
+import io.lumen.core.util.ReflectionUtil;
 import io.lumen.web.annotation.ExceptionHandler;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -14,7 +16,7 @@ public class ControllerAdviceRegistry {
      * Scans a @ControllerAdvice bean for @ExceptionHandler methods and registers them.
      */
     public void registerAdvice(Object adviceLight) {
-        Method[] methods = adviceLight.getClass().getDeclaredMethods();
+        List<Method> methods = ReflectionUtil.getAllMethods(adviceLight.getClass());
 
         for (Method method : methods) {
             if (method.isAnnotationPresent(ExceptionHandler.class)) {
