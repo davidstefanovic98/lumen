@@ -75,6 +75,7 @@ public class LumenDataModule implements LumenModule {
         EntityManagerFactory emf = metadataSources.buildMetadata().buildSessionFactory();
         container.registerExternalInstance(EntityManagerFactory.class, emf);
         container.registerExternalInstance(LumenTransactionManager.class, new JpaTransactionManager(emf));
+        container.registerExternalInstance(EntityManagerFactoryDisposable.class, new EntityManagerFactoryDisposable(emf));
     }
 
     private boolean isWebPresent() {

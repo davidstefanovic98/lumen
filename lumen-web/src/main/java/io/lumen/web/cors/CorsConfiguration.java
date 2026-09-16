@@ -43,10 +43,27 @@ public class CorsConfiguration {
         return this;
     }
 
-    public List<String> getAllowedOrigins()  { return allowedOrigins; }
-    public List<String> getAllowedMethods()  { return allowedMethods; }
-    public List<String> getAllowedHeaders()  { return allowedHeaders; }
-    public List<String> getExposedHeaders()  { return exposedHeaders; }
-    public boolean isAllowCredentials()      { return allowCredentials; }
-    public long getMaxAge()                  { return maxAge; }
+    public List<String> getAllowedOrigins()  {
+        return allowedOrigins;
+    }
+
+    public List<String> getAllowedMethods()  {
+        return allowedMethods;
+    }
+
+    public List<String> getAllowedHeaders()  {
+        return allowedHeaders;
+    }
+
+    public List<String> getExposedHeaders()  {
+        return exposedHeaders;
+    }
+
+    public boolean isAllowCredentials() {
+        return allowCredentials;
+    }
+
+    public long getMaxAge() {
+        return maxAge;
+    }
 }

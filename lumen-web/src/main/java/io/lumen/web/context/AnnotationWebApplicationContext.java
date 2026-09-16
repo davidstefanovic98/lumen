@@ -2,6 +2,7 @@ package io.lumen.web.context;
 
 import io.lumen.context.AnnotationApplicationContext;
 import io.lumen.core.DeferredLumenInitializer;
+import io.lumen.core.LumenDisposable;
 import io.lumen.core.LumenInitializer;
 import io.lumen.core.diagnostics.PortInUseException;
 import io.lumen.core.diagnostics.StartupFailureReporter;
@@ -134,7 +135,7 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
             logger.info("Lumen application shutting down (grace period: {}s)...", gracePeriodSeconds);
             webServer.stopGracefully(gracePeriodSeconds);
         }
-        closeResources();
+        runDisposables();
         logger.info("Lumen application stopped.");
     }
 
@@ -143,23 +144,18 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
                 stop(timeoutSeconds), "lumen-shutdown"));
     }
 
-    private void closeResources() {
-        // Close EntityManagerFactory if JPA is on the classpath and an EMF was registered.
-        // Using reflection to keep lumen-web free of a hard JPA dependency.
-        var container = context.getLightContainer();
-        try {
-            @SuppressWarnings("unchecked")
-            Class<Object> emfClass = (Class<Object>)
-                    Class.forName("jakarta.persistence.EntityManagerFactory");
-            if (container.hasLight(emfClass)) {
-                Object emf = container.getLight(emfClass);
-                emfClass.getMethod("close").invoke(emf);
-                logger.info("EntityManagerFactory closed.");
+    /**
+     * Runs every registered {@link LumenDisposable} - one failing must not stop the rest from
+     * running, the same way a single misbehaving bean's cleanup shouldn't cost every other
+     * module its own graceful shutdown.
+     */
+    private void runDisposables() {
+        for (LumenDisposable disposable : context.getLightContainer().internals().getLightsByType(LumenDisposable.class)) {
+            try {
+                disposable.onShutdown();
+            } catch (Exception e) {
+                logger.warn("Error during shutdown of {}: {}", disposable.getClass().getSimpleName(), e.getMessage());
             }
-        } catch (ClassNotFoundException ignored) {
-            // JPA not on classpath
-        } catch (Exception e) {
-            logger.warn("Error closing EntityManagerFactory: {}", e.getMessage());
         }
     }
 
