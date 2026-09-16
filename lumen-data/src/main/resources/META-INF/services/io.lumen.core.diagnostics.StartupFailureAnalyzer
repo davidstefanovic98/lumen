@@ -1,0 +1,2 @@
+io.lumen.data.diagnostics.DataSourceConnectionFailureAnalyzer
+io.lumen.data.diagnostics.PropertyResolveFailureAnalyzer

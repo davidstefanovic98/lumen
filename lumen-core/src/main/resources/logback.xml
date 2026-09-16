@@ -10,6 +10,12 @@
     <!-- Tomcat / Catalina internals -->
     <logger name="org.apache" level="WARN"/>
 
+    <!-- Tomcat logs "A child container failed during start" once per level of the container
+         hierarchy (StandardContext -> StandardHost -> StandardEngine), each with the full cause
+         chain, for a single startup failure. AnnotationWebApplicationContext already logs that
+         same failure once, cleanly - this just silences the redundant per-level copies. -->
+    <logger name="org.apache.catalina.core.ContainerBase" level="OFF"/>
+
     <!-- Hibernate internals — connection pool warnings are expected on startup -->
     <logger name="org.hibernate" level="WARN"/>
 

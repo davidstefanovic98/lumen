@@ -4,6 +4,7 @@ import io.lumen.core.annotation.Order;
 import io.lumen.security.authentication.Authentication;
 import io.lumen.security.context.SecurityContextHolder;
 import io.lumen.security.exception.AccessDeniedException;
+import io.lumen.security.exception.AuthenticationException;
 import io.lumen.web.http.HttpStatus;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -30,13 +31,19 @@ public class ExceptionTranslationFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
         } catch (Exception e) {
             Throwable cause = e;
-            while (cause.getCause() != null && !(cause instanceof AccessDeniedException)) {
+            while (cause != null && !(cause instanceof AccessDeniedException) && !(cause instanceof AuthenticationException)) {
                 cause = cause.getCause();
             }
             if (cause instanceof AccessDeniedException denied) {
                 handleAccessDenied(request, response, denied);
+            } else if (cause instanceof AuthenticationException) {
+                handleUnauthenticated(request, response);
             } else {
-                throw new ServletException(e);
+                // Not a security exception - rethrow unwrapped (precise rethrow: chain.doFilter()
+                // only declares IOException/ServletException, so e's original type is preserved)
+                // instead of boxing it in a fresh ServletException, matching Spring Security's
+                // ExceptionTranslationFilter.
+                throw e;
             }
         }
     }
@@ -44,20 +51,22 @@ public class ExceptionTranslationFilter extends OncePerRequestFilter {
     private void handleAccessDenied(HttpServletRequest request, HttpServletResponse response,
                                     AccessDeniedException ignored) throws IOException {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isApi = isApiRequest(request);
-
         if (auth == null || !auth.isAuthenticated()) {
-            if (formLoginEnabled && !isApi) {
-                response.sendRedirect(loginPage);
-            } else {
-                sendJson(response, HttpStatus.UNAUTHORIZED.value(), "Unauthorized", "Authentication required");
-            }
+            handleUnauthenticated(request, response);
+            return;
+        }
+        if (isApiRequest(request)) {
+            sendJson(response, HttpStatus.FORBIDDEN.value(), "Forbidden", "Access denied");
         } else {
-            if (isApi) {
-                sendJson(response, HttpStatus.FORBIDDEN.value(), "Forbidden", "Access denied");
-            } else {
-                renderAccessDeniedPage(response);
-            }
+            renderAccessDeniedPage(response);
+        }
+    }
+
+    private void handleUnauthenticated(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if (formLoginEnabled && !isApiRequest(request)) {
+            response.sendRedirect(loginPage);
+        } else {
+            sendJson(response, HttpStatus.UNAUTHORIZED.value(), "Unauthorized", "Authentication required");
         }
     }
 

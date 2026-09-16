@@ -4,6 +4,7 @@ import io.lumen.security.authentication.UsernamePasswordAuthenticationToken;
 import io.lumen.security.authority.SimpleGrantedAuthority;
 import io.lumen.security.context.SecurityContextHolder;
 import io.lumen.security.exception.AccessDeniedException;
+import io.lumen.security.exception.AuthenticationException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -135,15 +136,69 @@ class ExceptionTranslationFilterTest {
     }
 
     // -------------------------------------------------------------------------
-    // Non-AccessDeniedException re-throws as ServletException
+    // AuthenticationException (thrown directly, not wrapped in AccessDeniedException)
     // -------------------------------------------------------------------------
 
     @Test
-    void nonAccessDeniedException_isRethrown() {
+    void authenticationException_apiRequest_returns401() throws Exception {
+        var filter = new ExceptionTranslationFilter("/login", false);
+        var response = captureResponse();
+
+        filter.doFilterInternal(apiRequest(), response, throwingChain(new AuthenticationException("bad credentials")));
+
+        verify(response).setStatus(401);
+        verify(response, never()).sendRedirect(anyString());
+    }
+
+    @Test
+    void authenticationException_formLoginEnabled_browserRequest_redirectsToLogin() throws Exception {
+        var filter = new ExceptionTranslationFilter("/login", true);
+        var response = captureResponse();
+
+        filter.doFilterInternal(browserRequest(), response, throwingChain(new AuthenticationException("bad credentials")));
+
+        verify(response).sendRedirect("/login");
+        verify(response, never()).setStatus(401);
+    }
+
+    @Test
+    void authenticationException_wrappedInCause_isStillTranslated() throws Exception {
+        var filter = new ExceptionTranslationFilter("/login", false);
+        var response = captureResponse();
+        var wrapped = new RuntimeException("boom", new AuthenticationException("bad credentials"));
+
+        filter.doFilterInternal(apiRequest(), response, throwingChain(wrapped));
+
+        verify(response).setStatus(401);
+    }
+
+    // -------------------------------------------------------------------------
+    // Non-security exceptions are rethrown unwrapped, not boxed in ServletException.
+    // Boxing them would still let the exception escape to the servlet container -
+    // it would just obscure the original type/stack trace once it gets there.
+    // -------------------------------------------------------------------------
+
+    @Test
+    void nonSecurityRuntimeException_isRethrownAsSameInstance() {
         var filter = new ExceptionTranslationFilter("/login", false);
         var ex = new IllegalStateException("unexpected");
-        assertThrows(jakarta.servlet.ServletException.class,
+
+        var thrown = assertThrows(IllegalStateException.class,
                 () -> filter.doFilterInternal(apiRequest(), captureResponse(), throwingChain(ex)));
+
+        assertSame(ex, thrown);
+    }
+
+    @Test
+    void nonSecurityServletException_isRethrownAsSameInstance() {
+        var filter = new ExceptionTranslationFilter("/login", false);
+        jakarta.servlet.FilterChain chain = (req, resp) -> { throw new jakarta.servlet.ServletException("boom"); };
+
+        var thrown = assertThrows(jakarta.servlet.ServletException.class,
+                () -> filter.doFilterInternal(apiRequest(), captureResponse(), chain));
+
+        assertEquals("boom", thrown.getMessage());
+        assertNull(thrown.getCause());
     }
 
     // -------------------------------------------------------------------------
