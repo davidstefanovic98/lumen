@@ -47,4 +47,21 @@ class ReflectionUtilTest {
 
         assertTrue(methods.stream().noneMatch(m -> m.getDeclaringClass() == Object.class));
     }
+
+    static class RealController {}
+
+    // Named to reproduce ByteBuddy's actual generated-subclass naming ("$ByteBuddy$<random>"),
+    // without needing a real ByteBuddy dependency in lumen-core's tests.
+    static class RealController$ByteBuddy$fakeproxy extends RealController {}
+
+    @Test
+    void getUserClass_byteBuddyProxy_returnsRealDeclaredClass() {
+        assertEquals(RealController.class,
+                ReflectionUtil.getUserClass(RealController$ByteBuddy$fakeproxy.class));
+    }
+
+    @Test
+    void getUserClass_nonProxyClass_returnsItself() {
+        assertEquals(RealController.class, ReflectionUtil.getUserClass(RealController.class));
+    }
 }

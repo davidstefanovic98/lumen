@@ -2,6 +2,7 @@ package io.lumen.web.argument;
 
 import io.lumen.core.util.ParameterNameDiscoverer;
 import io.lumen.web.annotation.PathVariable;
+import io.lumen.web.exception.PathVariableNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -23,6 +24,14 @@ public class PathVariableArgumentResolver implements MethodArgumentResolver {
         String name = annotation.value().isEmpty()
                 ? ParameterNameDiscoverer.getParameterName(parameter)
                 : annotation.value();
+
+        if (!pathVariables.containsKey(name)) {
+            throw new PathVariableNotFoundException(String.format(
+                    "No path variable '%s' found for method parameter of type %s. " +
+                            "Check that the route pattern declares a matching '{%s}' segment.",
+                    name, parameter.getType().getSimpleName(), name
+            ));
+        }
         return convert(pathVariables.get(name), parameter.getType());
     }
 }

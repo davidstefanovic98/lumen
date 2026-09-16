@@ -71,6 +71,23 @@ public class ReflectionUtil {
     }
 
     /**
+     * Returns the real, user-declared class behind a ByteBuddy-generated proxy, or {@code type}
+     * itself if it isn't a proxy. All Lumen proxies are created via {@code .subclass(type)}, so
+     * a proxy class's name always contains {@code "$ByteBuddy$"} and its immediate superclass is
+     * the original class - this walks up past any such generated subclasses. Use this whenever
+     * a class name is shown to a developer (log messages, exception messages); showing the raw
+     * proxy class name (e.g. {@code TaskController$ByteBuddy$EV0DpoOT}) is confusing since it's
+     * not something anyone wrote.
+     */
+    public static Class<?> getUserClass(Class<?> type) {
+        Class<?> current = type;
+        while (current != null && current.getName().contains("$ByteBuddy$")) {
+            current = current.getSuperclass();
+        }
+        return current;
+    }
+
+    /**
      * Finds an annotation on a method by walking up the class hierarchy.
      * ByteBuddy-generated proxy override methods carry no annotations, so a plain
      * {@code method.getAnnotation()} call will miss annotations declared on the

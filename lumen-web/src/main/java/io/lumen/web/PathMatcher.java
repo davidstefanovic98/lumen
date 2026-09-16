@@ -44,6 +44,10 @@ class PathMatcher {
         return pattern.matcher(path).matches();
     }
 
+    List<String> getVariableNames() {
+        return variableNames;
+    }
+
     Map<String, String> extractVariables(String path) {
         Map<String, String> variables = new HashMap<>();
         Matcher matcher = pattern.matcher(path);

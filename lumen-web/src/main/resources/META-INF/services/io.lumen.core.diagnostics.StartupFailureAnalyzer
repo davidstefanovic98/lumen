@@ -1,1 +1,2 @@
 io.lumen.web.diagnostics.AmbiguousMappingFailureAnalyzer
+io.lumen.web.diagnostics.PathVariableNotFoundFailureAnalyzer
