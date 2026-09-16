@@ -10,6 +10,9 @@ public class BCryptPasswordEncoder implements PasswordEncoder{
     }
 
     public BCryptPasswordEncoder(int logRounds) {
+        if (logRounds < 4 || logRounds > 31) {
+            throw new IllegalArgumentException("logRounds must be between 4 and 31, got: " + logRounds);
+        }
         this.logRounds = logRounds;
     }
 

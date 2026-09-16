@@ -19,7 +19,6 @@ public class SecurityContextTaskDecorator implements TaskDecorator {
 
     @Override
     public Runnable decorate(Runnable runnable) {
-        // Captured on the submitting thread.
         Authentication captured = SecurityContextHolder.getContext().getAuthentication();
 
         return () -> {
@@ -30,11 +29,7 @@ public class SecurityContextTaskDecorator implements TaskDecorator {
                 SecurityContextHolder.setContext(ctx);
                 runnable.run();
             } finally {
-                if (previous != null) {
-                    SecurityContextHolder.setContext(previous);
-                } else {
-                    SecurityContextHolder.clear();
-                }
+                SecurityContextHolder.setContext(previous);
             }
         };
     }
