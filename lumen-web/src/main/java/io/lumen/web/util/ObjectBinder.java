@@ -31,7 +31,8 @@ public final class ObjectBinder {
     private ObjectBinder() {}
 
     /**
-     * Cache for class fields. Key: class type, Value: array of declared fields (set accessible).
+     * Cache for class fields. Key: class type, Value: array of fields declared on the type or
+     * any superclass (set accessible).
      * This ensures we only compute fields and call setAccessible(true) once per class,
      * improving performance for repeated bindings of the same type.
      */
@@ -90,7 +91,7 @@ public final class ObjectBinder {
             }
 
             Field[] fields = classFieldCache.computeIfAbsent(type, clazz -> {
-                Field[] allFields = clazz.getDeclaredFields();
+                Field[] allFields = ReflectionUtil.getAllFields(clazz).toArray(new Field[0]);
                 for (Field f : allFields)
                     f.setAccessible(true);
                 return allFields;

@@ -1,13 +1,13 @@
 package io.lumen.web.argument;
 
 import io.lumen.core.util.ParameterNameDiscoverer;
+import io.lumen.core.util.ReflectionUtil;
 import io.lumen.web.annotation.RequestParam;
 import io.lumen.web.exception.MissingRequestParameterException;
 import io.lumen.web.exception.PrimitiveTypeRequestParameterException;
 import io.lumen.web.util.ObjectBinder;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jdk.dynalink.linker.support.TypeUtilities;
 
 import java.lang.reflect.Parameter;
 import java.util.Map;
@@ -51,7 +51,7 @@ public class RequestParamArgumentResolver implements MethodArgumentResolver {
                             "Consider declaring it as wrapper type '%s' instead.",
                     name,
                     type.getSimpleName(),
-                    TypeUtilities.getWrapperType(type).getSimpleName()
+                    ReflectionUtil.wrapperFor(type).getSimpleName()
             ));
         }
 

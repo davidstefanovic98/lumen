@@ -4,7 +4,11 @@ import io.lumen.core.exception.LightInitializationException;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -159,6 +163,45 @@ public class ReflectionUtil {
             current = current.getSuperclass();
         }
         return false;
+    }
+
+    /**
+     * Returns every method declared on {@code type} or any of its superclasses (excluding
+     * {@code Object}), so annotated handler/advice methods inherited from a base class are
+     * found the same way as ones declared directly. When a subclass overrides a method, only
+     * the subclass's version is included - the hierarchy is walked from {@code type} upward and
+     * the first (i.e. most-derived) declaration of each name+parameter-types signature wins.
+     */
+    public static List<Method> getAllMethods(Class<?> type) {
+        Map<String, Method> methodsBySignature = new LinkedHashMap<>();
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            for (Method method : current.getDeclaredMethods()) {
+                String signature = method.getName() + Arrays.toString(method.getParameterTypes());
+                methodsBySignature.putIfAbsent(signature, method);
+            }
+            current = current.getSuperclass();
+        }
+        return new ArrayList<>(methodsBySignature.values());
+    }
+
+    /**
+     * Returns every field declared on {@code type} or any of its superclasses (excluding
+     * {@code Object}), so fields inherited from a base class (e.g. a shared DTO superclass) are
+     * bound the same way as fields declared directly. If a subclass shadows a superclass field
+     * with the same name, the hierarchy is walked from {@code type} upward and the subclass's
+     * field wins.
+     */
+    public static List<Field> getAllFields(Class<?> type) {
+        Map<String, Field> fieldsByName = new LinkedHashMap<>();
+        Class<?> current = type;
+        while (current != null && current != Object.class) {
+            for (Field field : current.getDeclaredFields()) {
+                fieldsByName.putIfAbsent(field.getName(), field);
+            }
+            current = current.getSuperclass();
+        }
+        return new ArrayList<>(fieldsByName.values());
     }
 
     // ── Classloader-resilient annotation helpers ──────────────────────────────
