@@ -34,6 +34,6 @@ class JsonHttpMessageConverter implements HttpMessageConverter {
 
     @Override
     public List<MediaType> getSupportedMediaTypes() {
-        return List.of(MediaType.APPLICATION_OCTET_STREAM);
+        return List.of(MediaType.APPLICATION_JSON);
     }
 }
