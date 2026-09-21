@@ -1,5 +1,8 @@
 package io.lumen.web.exception.handle;
 
+import io.lumen.core.logging.Logger;
+import io.lumen.core.logging.LoggerFactory;
+import io.lumen.core.util.ReflectionUtil;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.http.ResponseEntity;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +11,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.lang.reflect.InvocationTargetException;
 
 public class GlobalExceptionHandleResolver implements ExceptionResolver {
+
+    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandleResolver.class);
+
     private final ControllerAdviceRegistry registry;
     private final HttpMessageConverterRegistry converterRegistry;
 
@@ -34,6 +40,10 @@ public class GlobalExceptionHandleResolver implements ExceptionResolver {
                 handleResult(result, resp);
                 return true;
             } catch (Exception e) {
+                Throwable cause = e instanceof InvocationTargetException ite ? ite.getTargetException() : e;
+                logger.error("@ExceptionHandler {}.{}() threw while handling {}: {}",
+                        ReflectionUtil.getUserClass(handler.light().getClass()).getSimpleName(),
+                        handler.method().getName(), throwable.getClass().getName(), cause.getMessage(), cause);
                 return false;
             }
         }

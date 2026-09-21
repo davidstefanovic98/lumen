@@ -1,6 +1,7 @@
 package io.lumen.web.handler;
 
 import io.lumen.web.Route;
+import io.lumen.web.annotation.ResponseStatus;
 import io.lumen.web.http.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,7 +19,7 @@ public class RestResultHandler implements RouteResultHandler {
     }
 
     @Override
-    public void handle(Object result, Object[] args, HttpServletRequest req, HttpServletResponse resp) throws Exception {
+    public void handle(Object result, Object[] args, Route route, HttpServletRequest req, HttpServletResponse resp) throws Exception {
         Object body = result;
 
         if (result instanceof ResponseEntity<?> entity) {
@@ -27,7 +28,7 @@ public class RestResultHandler implements RouteResultHandler {
             body = entity.getBody();
             if (body == null) return;
         } else {
-            resp.setStatus(HttpStatus.OK.value());
+            resp.setStatus(resolveStatus(route));
         }
 
         if (resp.getContentType() == null) {
@@ -46,5 +47,10 @@ public class RestResultHandler implements RouteResultHandler {
             }
         }
         converterRegistry.write(body, body.getClass(), resp);
+    }
+
+    private int resolveStatus(Route route) {
+        ResponseStatus ann = route.getMethod().getAnnotation(ResponseStatus.class);
+        return ann != null ? ann.value().value() : HttpStatus.OK.value();
     }
 }

@@ -32,6 +32,8 @@ class DefaultExceptionResolver implements ExceptionResolver {
             String msg = message != null ? message.replace("\"", "\\\"") : error;
             resp.getWriter().write(
                     "{\"status\":" + status + ",\"error\":\"" + error + "\",\"message\":\"" + msg + "\"}");
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            logger.warn("Failed to write error response body (status {}): {}", status, e.getMessage(), e);
+        }
     }
 }

@@ -98,7 +98,7 @@ public class RouteInvoker {
                               HttpServletRequest request, HttpServletResponse response) throws Exception {
         for (RouteResultHandler handler : resultHandlers) {
             if (handler.supports(returnValue, route)) {
-                handler.handle(returnValue, args, request, response);
+                handler.handle(returnValue, args, route, request, response);
                 return;
             }
         }

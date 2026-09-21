@@ -24,7 +24,7 @@ public class ViewResultHandler implements RouteResultHandler {
     }
 
     @Override
-    public void handle(Object result, Object[] args, HttpServletRequest req, HttpServletResponse resp) throws Exception {
+    public void handle(Object result, Object[] args, Route route, HttpServletRequest req, HttpServletResponse resp) throws Exception {
         ModelAndView mavToUse = null;
 
         for (Object arg : args) {
