@@ -1,6 +1,5 @@
 package io.lumen.web.context;
 
-import io.lumen.core.component.LightInstance;
 import io.lumen.web.Route;
 import io.lumen.web.RouteRegistry;
 import io.lumen.web.annotation.*;
@@ -8,7 +7,6 @@ import io.lumen.web.http.HttpMethod;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -57,14 +55,6 @@ class ControllerScanner {
         ));
     }
 
-
-    static void scanControllers(Collection<LightInstance> lights, RouteRegistry registry) {
-        for (LightInstance light : lights) {
-            if (hasAnnotation(light.getType(), Controller.class)) {
-                scanController(light.getInstance(), light.getType(), registry);
-            }
-        }
-    }
 
     static void scanController(Object instance, Class<?> type, RouteRegistry registry) {
         String basePath = extractBasePath(type);

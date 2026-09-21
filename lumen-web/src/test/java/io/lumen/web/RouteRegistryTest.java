@@ -5,8 +5,15 @@ import io.lumen.web.exception.AmbiguousMappingException;
 import io.lumen.web.exception.PathVariableNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -151,5 +158,85 @@ class RouteRegistryTest {
 
         assertTrue(thrown.getMessage().contains("FakeController#"), thrown.getMessage());
         assertFalse(thrown.getMessage().contains("ByteBuddy"), thrown.getMessage());
+    }
+
+    // --- concurrency: register() vs. findMatch() on the routing hot path ---
+
+    @Test
+    @Timeout(10)
+    void concurrentRegisterAndFindMatch_neverThrowsAndRegistersAllRoutes() throws Exception {
+        int routeCount = 200;
+        int readerThreads = 8;
+
+        ExecutorService writer = Executors.newSingleThreadExecutor();
+        ExecutorService readers = Executors.newFixedThreadPool(readerThreads);
+        AtomicBoolean stopReaders = new AtomicBoolean(false);
+        AtomicInteger readerFailures = new AtomicInteger(0);
+        CountDownLatch readersStarted = new CountDownLatch(readerThreads);
+
+        for (int i = 0; i < readerThreads; i++) {
+            readers.submit(() -> {
+                readersStarted.countDown();
+                try {
+                    // findMatch() must tolerate concurrent register() calls without throwing
+                    // ConcurrentModificationException or any other exception off a plain ArrayList.
+                    while (!stopReaders.get()) {
+                        registry.findMatch("/route-0", "GET");
+                    }
+                } catch (Exception e) {
+                    readerFailures.incrementAndGet();
+                }
+            });
+        }
+
+        readersStarted.await();
+        writer.submit(() -> {
+            for (int i = 0; i < routeCount; i++) {
+                registry.register(route("GET", "/route-" + i));
+            }
+        }).get(5, TimeUnit.SECONDS);
+
+        stopReaders.set(true);
+        readers.shutdown();
+        assertTrue(readers.awaitTermination(5, TimeUnit.SECONDS));
+        writer.shutdown();
+
+        assertEquals(0, readerFailures.get(), "findMatch() must not throw while register() is mutating the list concurrently");
+        assertEquals(routeCount, registry.getRouteCount());
+    }
+
+    @Test
+    @Timeout(10)
+    void concurrentRegisterDistinctRoutes_registersAllWithoutLostUpdates() throws Exception {
+        int threadCount = 16;
+        int routesPerThread = 25;
+        ExecutorService pool = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch ready = new CountDownLatch(threadCount);
+        CountDownLatch go = new CountDownLatch(1);
+
+        for (int t = 0; t < threadCount; t++) {
+            int threadIndex = t;
+            pool.submit(() -> {
+                ready.countDown();
+                try {
+                    go.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                for (int i = 0; i < routesPerThread; i++) {
+                    registry.register(route("GET", "/thread-" + threadIndex + "-route-" + i));
+                }
+            });
+        }
+
+        ready.await();
+        go.countDown();
+        pool.shutdown();
+        assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS));
+
+        // synchronized register() must serialize the check-then-add so no route is lost or
+        // double-counted even when every thread hits ambiguity checking at the same time.
+        assertEquals(threadCount * routesPerThread, registry.getRouteCount());
     }
 }
