@@ -7,5 +7,5 @@ import jakarta.servlet.http.HttpServletResponse;
 public interface RouteResultHandler {
     boolean supports(Object returnValue, Route route);
 
-    void handle(Object result, Object[] args, HttpServletRequest req, HttpServletResponse resp) throws Exception;
+    void handle(Object result, Object[] args, Route route, HttpServletRequest req, HttpServletResponse resp) throws Exception;
 }
