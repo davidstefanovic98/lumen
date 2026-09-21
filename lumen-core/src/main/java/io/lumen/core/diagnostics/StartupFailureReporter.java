@@ -1,12 +1,14 @@
 package io.lumen.core.diagnostics;
 
+import io.lumen.core.logging.Logger;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
 
 /**
- * Mirrors Spring Boot's {@code FailureAnalyzers}: walks a startup failure's cause chain looking
- * for a {@link StartupFailureAnalyzer} that recognizes it, and if one does, prints a clean
+ * Walks a startup failure's cause chain looking for a {@link StartupFailureAnalyzer}
+ * that recognizes it, and if one does, prints a clean
  * "APPLICATION FAILED TO START" report instead of a raw stack trace.
  *
  * <p>The report is written directly to {@code System.err}, deliberately bypassing the logging
@@ -37,6 +39,18 @@ public final class StartupFailureReporter {
             }
         }
         return false;
+    }
+
+    /**
+     * The single choke point every startup failure should go through, regardless of which phase
+     * of startup threw it: try {@link #report(Throwable)} first, and only if no analyzer
+     * recognized the failure, fall back to logging it with its full stack trace - exactly once,
+     * either way.
+     */
+    public static void reportOrLog(Throwable failure, Logger logger, String fallbackMessage) {
+        if (!report(failure)) {
+            logger.error(fallbackMessage, failure);
+        }
     }
 
     private static void print(FailureAnalysis analysis) {
