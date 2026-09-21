@@ -5,7 +5,6 @@ import io.lumen.core.DeferredLumenInitializer;
 import io.lumen.core.LumenDisposable;
 import io.lumen.core.LumenInitializer;
 import io.lumen.core.diagnostics.PortInUseException;
-import io.lumen.core.diagnostics.StartupFailureReporter;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.web.DispatcherServlet;
@@ -79,15 +78,14 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
             webServer.await();
 
         } catch (Exception e) {
+            // Translate the raw bind failure into a PortInUseException - which only this method
+            // can do, since only it knows resolvedPort - and otherwise just propagate. Reporting
+            // (StartupFailureAnalyzer lookup, or the raw-stack-trace fallback) happens exactly
+            // once, at the single call site that catches every startup failure regardless of
+            // which phase threw it: LumenApplication.run().
             Throwable root = rootCause(e);
             if (root instanceof BindException) {
-                StartupFailureReporter.report(new PortInUseException(resolvedPort, e));
-                throw new RuntimeException(
-                        "Port " + resolvedPort + " is already in use. " +
-                        "Change server.port in application.properties or stop the process using that port.", e);
-            }
-            if (!StartupFailureReporter.report(e)) {
-                logger.error("Critical failure during web server startup", e);
+                throw new PortInUseException(resolvedPort, e);
             }
             throw new RuntimeException("Failed to start web server on port " + resolvedPort, e);
         }
