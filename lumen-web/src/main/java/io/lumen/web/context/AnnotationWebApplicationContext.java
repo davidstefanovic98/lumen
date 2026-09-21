@@ -23,6 +23,8 @@ import jakarta.servlet.ServletContainerInitializer;
 import jakarta.servlet.ServletContext;
 
 import java.net.BindException;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -202,9 +204,10 @@ public class AnnotationWebApplicationContext implements WebApplicationContext {
     public void registerFilters(ServletContext servletContext) {
         logger.info("Registering web filters...");
 
-        List<LumenFilter> filters = context.getLightContainer()
+        List<LumenFilter> filters = new ArrayList<>(context.getLightContainer()
                 .internals()
-                .getLightsByType(LumenFilter.class);
+                .getLightsByType(LumenFilter.class));
+        filters.sort(Comparator.comparingInt(LumenFilter::getOrder));
 
         for (LumenFilter filter : filters) {
             String filterName = filter.getClass().getSimpleName();

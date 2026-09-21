@@ -11,15 +11,25 @@ import io.lumen.web.exception.PathVariableNotFoundException;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Registry for storing and managing route mappings.
  */
 public class RouteRegistry {
     private static final Logger logger = LoggerFactory.getLogger(RouteRegistry.class);
-    private final List<RouteEntry> routes = new ArrayList<>();
 
-    public void register(Route route) {
+    /**
+     * CopyOnWriteArrayList so {@link #findMatch(String, String)} — called on every request,
+     * from every request-handling thread — never synchronizes and never sees a torn/partial
+     * list while {@link #register(Route)} mutates it. Registration is rare (startup, and
+     * eventually hot-reload) and itself {@code synchronized} below, since the ambiguity check
+     * is a check-then-act over the whole list and needs to stay atomic across concurrent
+     * registrations even though each individual read is already safe.
+     */
+    private final List<RouteEntry> routes = new CopyOnWriteArrayList<>();
+
+    public synchronized void register(Route route) {
         PathMatcher newMatcher = PathMatcher.compile(route.getPathPattern());
         validatePathVariables(route, newMatcher);
         for (RouteEntry existing : routes) {
@@ -32,19 +42,6 @@ public class RouteRegistry {
                                 + controllerSimpleName(existing.route) + "#" + existing.route.getMethod().getName()
                 );
             }
-//            if (newMatcher.couldShadowLiteral(existing.matcher)) {
-//                logger.debug(String.format(
-//                        "Route [%s %s] in controller %s#%s may shadow existing route [%s %s] in controller %s#%s%n",
-//                        route.getHttpMethod(),
-//                        route.getPathPattern(),
-//                        route.getController().getClass().getSimpleName(),
-//                        route.getMethod().getName(),
-//                        existing.route.getHttpMethod(),
-//                        existing.route.getPathPattern(),
-//                        existing.route.getController().getClass().getSimpleName(),
-//                        existing.route.getMethod().getName()
-//                ));
-//            }
         }
         routes.add(new RouteEntry(route, newMatcher));
         // Sort routes by specificity (more specific routes first), to ensure correct matching order
