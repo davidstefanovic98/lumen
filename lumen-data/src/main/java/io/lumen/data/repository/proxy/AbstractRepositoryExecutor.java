@@ -1,5 +1,6 @@
 package io.lumen.data.repository.proxy;
 
+import io.lumen.data.pageable.Pageable;
 import io.lumen.data.pageable.Sort;
 import io.lumen.data.transaction.EntityManagerHolder;
 import jakarta.persistence.EntityManager;
@@ -87,5 +88,23 @@ abstract class AbstractRepositoryExecutor implements RepositoryFragment {
     protected void deleteEntity(Object entity) {
         EntityManager em = em();
         em.remove(em.contains(entity) ? entity : em.merge(entity));
+    }
+
+    /**
+     * Jakarta Persistence's {@code Query.setFirstResult(int)} only accepts an int, so a
+     * {@code Pageable} offset that overflows it can't be honoured at all — silently truncating it
+     * via a raw {@code (int)} cast would wrap around to an arbitrary (possibly negative) offset
+     * and return the wrong page with no indication anything went wrong. Failing fast here surfaces
+     * that as a clear, actionable error instead.
+     */
+    protected int firstResultOf(Pageable pageable) {
+        long offset = pageable.getOffset();
+        if (offset > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(
+                    "Pageable offset " + offset + " (page=" + pageable.getPageNumber() +
+                    ", size=" + pageable.getPageSize() + ") exceeds Integer.MAX_VALUE, " +
+                    "which jakarta.persistence.Query.setFirstResult(int) cannot address");
+        }
+        return (int) offset;
     }
 }
