@@ -1,2 +1,3 @@
 io.lumen.data.diagnostics.DataSourceConnectionFailureAnalyzer
 io.lumen.data.diagnostics.PropertyResolveFailureAnalyzer
+io.lumen.data.diagnostics.InvalidDdlAutoFailureAnalyzer
