@@ -5,6 +5,7 @@ import io.lumen.gleam.Gleam;
 import io.lumen.gleam.StandardEvaluationContext;
 import io.lumen.security.authentication.Authentication;
 import io.lumen.security.authority.GrantedAuthority;
+import io.lumen.security.authority.RoleAuthorities;
 import io.lumen.security.context.SecurityContextHolder;
 import io.lumen.security.exception.AccessDeniedException;
 
@@ -80,8 +81,7 @@ public final class MethodSecurityExpressionEvaluator {
 
         ctx.registerFunction("hasRole", a -> {
             if (auth == null || !auth.isAuthenticated()) return false;
-            String role = (String) a[0];
-            String authority = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+            String authority = RoleAuthorities.normalize((String) a[0]);
             return auth.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .anyMatch(authority::equals);
@@ -92,7 +92,7 @@ public final class MethodSecurityExpressionEvaluator {
             List<String> authorities = auth.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority).toList();
             return Arrays.stream(a)
-                    .map(r -> { String s = (String) r; return s.startsWith("ROLE_") ? s : "ROLE_" + s; })
+                    .map(r -> RoleAuthorities.normalize((String) r))
                     .anyMatch(authorities::contains);
         });
 

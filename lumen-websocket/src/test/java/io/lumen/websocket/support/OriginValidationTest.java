@@ -8,6 +8,7 @@ import io.lumen.websocket.WebSocketSession;
 import jakarta.websocket.HandshakeResponse;
 import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerEndpointConfig;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -18,6 +19,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class OriginValidationTest {
+
+    @AfterEach
+    void clearOriginContext() {
+        WebSocketOriginContext.clear();
+    }
 
     static class NoopHandler extends AbstractWebSocketHandler {
         @Override public void afterConnectionEstablished(WebSocketSession s) {}
@@ -35,8 +41,24 @@ class OriginValidationTest {
     }
 
     @Test
-    void emptyOrigins_alwaysTrue_sameOriginAllowed() {
+    void emptyOrigins_matchingCapturedOrigin_isAllowed() {
+        WebSocketOriginContext.set("http://app.example.com");
         assertTrue(configurator(List.of()).checkOrigin("http://app.example.com"));
+    }
+
+    @Test
+    void emptyOrigins_nonMatchingOrigin_isRejected() {
+        // Regression: this used to unconditionally return true regardless of the actual origin,
+        // accepting every cross-origin WebSocket connection when allowedOrigins wasn't set.
+        WebSocketOriginContext.set("http://app.example.com");
+        assertFalse(configurator(List.of()).checkOrigin("http://evil.com"));
+    }
+
+    @Test
+    void emptyOrigins_captureFilterDidNotRun_failsClosed() {
+        // No WebSocketOriginContext set (simulating the filter not having run) must reject,
+        // not silently allow — matching the "fail closed" intent of same-origin-only.
+        assertFalse(configurator(List.of()).checkOrigin("http://app.example.com"));
     }
 
     @Test
