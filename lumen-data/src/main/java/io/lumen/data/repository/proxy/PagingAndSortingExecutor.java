@@ -45,7 +45,7 @@ public class PagingAndSortingExecutor extends AbstractRepositoryExecutor {
             long total = em().createQuery("SELECT COUNT(e) FROM " + entityClass.getSimpleName() + " e", Long.class)
                     .getSingleResult();
             List<?> content = em().createQuery("SELECT e FROM " + entityClass.getSimpleName() + " e" + orderByClause(pageable.getSort()), entityClass)
-                    .setFirstResult((int) pageable.getOffset())
+                    .setFirstResult(firstResultOf(pageable))
                     .setMaxResults(pageable.getPageSize())
                     .getResultList();
             return new PageImpl<>(content, pageable, total);

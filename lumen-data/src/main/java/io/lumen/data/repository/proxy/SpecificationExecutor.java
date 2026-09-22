@@ -83,7 +83,7 @@ public class SpecificationExecutor extends AbstractRepositoryExecutor {
             if (predicate != null) query.where(predicate);
             if (pageable.getSort().isSorted()) query.orderBy(toJpaOrders(pageable.getSort(), root, cb));
             List<?> content = em().createQuery(query)
-                    .setFirstResult((int) pageable.getOffset())
+                    .setFirstResult(firstResultOf(pageable))
                     .setMaxResults(pageable.getPageSize())
                     .getResultList();
             return new PageImpl<>(content, pageable, total);

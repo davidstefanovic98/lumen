@@ -5,7 +5,9 @@ import io.lumen.data.query.QueryDescriptor.QueryType;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class NameResolvingQueryParser implements QueryParser {
@@ -151,26 +153,45 @@ public class NameResolvingQueryParser implements QueryParser {
 
     private void validatePropertyPath(Class<?> entityClass, String propertyPath) {
         Class<?> current = entityClass;
-        for (String segment : propertyPath.split("\\.")) {
-            current = resolveField(current, segment);
-            if (current == null) {
+        String[] segments = propertyPath.split("\\.");
+        for (int i = 0; i < segments.length; i++) {
+            String segment = segments[i];
+            Field field = resolveField(current, segment);
+            if (field == null) {
                 throw new PropertyResolveException(
                         "Entity " + entityClass.getSimpleName() +
                         " has no property path '" + propertyPath + "'");
             }
+            boolean hasMoreSegments = i < segments.length - 1;
+            if (hasMoreSegments && Collection.class.isAssignableFrom(field.getType())) {
+                throw new PropertyResolveException(
+                        "Entity " + entityClass.getSimpleName() + ": '" + segment + "' is a " +
+                        "collection-valued association (" + field.getType().getSimpleName() + "<" +
+                        collectionElementTypeName(field) + ">) - derived query names can't navigate " +
+                        "through a to-many association yet; use @Query with an explicit JOIN instead");
+            }
+            current = field.getType();
         }
     }
 
-    private Class<?> resolveField(Class<?> type, String fieldName) {
+    private Field resolveField(Class<?> type, String fieldName) {
         Class<?> current = type;
         while (current != null && current != Object.class) {
             try {
-                Field f = current.getDeclaredField(fieldName);
-                return f.getType();
+                return current.getDeclaredField(fieldName);
             } catch (NoSuchFieldException e) {
                 current = current.getSuperclass();
             }
         }
         return null;
+    }
+
+    private String collectionElementTypeName(Field field) {
+        if (field.getGenericType() instanceof ParameterizedType pt
+                && pt.getActualTypeArguments().length > 0
+                && pt.getActualTypeArguments()[0] instanceof Class<?> elementType) {
+            return elementType.getSimpleName();
+        }
+        return "?";
     }
 }

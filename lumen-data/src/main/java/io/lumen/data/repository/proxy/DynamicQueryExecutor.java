@@ -4,6 +4,7 @@ import io.lumen.data.annotation.Param;
 import io.lumen.data.pageable.Page;
 import io.lumen.data.pageable.PageImpl;
 import io.lumen.data.pageable.Pageable;
+import io.lumen.data.query.CountQueryDeriver;
 import io.lumen.data.query.QueryDescriptor;
 import io.lumen.data.query.QueryParser;
 import jakarta.persistence.EntityManagerFactory;
@@ -12,13 +13,9 @@ import jakarta.persistence.NoResultException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class DynamicQueryExecutor extends AbstractRepositoryExecutor {
     private final QueryParser queryParser;
-
-    private static final Pattern FROM_ALIAS = Pattern.compile("(?i)FROM\\s+\\w+\\s+(\\w+)");
 
     public DynamicQueryExecutor(EntityManagerFactory emf, Class<?> entityClass, QueryParser queryParser) {
         super(emf, entityClass);
@@ -106,7 +103,7 @@ public class DynamicQueryExecutor extends AbstractRepositoryExecutor {
 
             String countJpql = descriptor.countQuery() != null
                     ? descriptor.countQuery()
-                    : deriveCountQuery(descriptor.query());
+                    : CountQueryDeriver.derive(descriptor.query());
             var countQuery = em().createQuery(countJpql, Long.class);
             bindParams(countQuery, method, args, descriptor.namedParams());
             long total = countQuery.getSingleResult();
@@ -120,7 +117,7 @@ public class DynamicQueryExecutor extends AbstractRepositoryExecutor {
                     ? em().createNativeQuery(dataJpql, entityClass)
                     : em().createQuery(dataJpql, entityClass);
             bindParams(dataQuery, method, args, descriptor.namedParams());
-            dataQuery.setFirstResult((int) pageable.getOffset());
+            dataQuery.setFirstResult(firstResultOf(pageable));
             dataQuery.setMaxResults(pageable.getPageSize());
 
             return new PageImpl<>(dataQuery.getResultList(), pageable, total);
@@ -134,13 +131,6 @@ public class DynamicQueryExecutor extends AbstractRepositoryExecutor {
             }
         }
         throw new IllegalArgumentException("No Pageable argument found");
-    }
-
-    private String deriveCountQuery(String jpql) {
-        String without = jpql.replaceAll("(?i)\\s+ORDER\\s+BY.+$", "");
-        Matcher m = FROM_ALIAS.matcher(without);
-        String alias = m.find() ? m.group(1) : "e";
-        return without.replaceAll("(?i)^\\s*SELECT\\s+.+?\\s+FROM\\s", "SELECT COUNT(" + alias + ") FROM ");
     }
 
     private void bindParams(jakarta.persistence.Query query, Method method, Object[] args, boolean namedParams) {
