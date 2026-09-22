@@ -71,6 +71,7 @@ public class JpaTransactionManager implements LumenTransactionManager {
                     else em.getTransaction().commit();
                 }
             } finally {
+                restoreIsolation(em, sts.getPreviousIsolationLevel());
                 EntityManagerHolder.clear();
                 em.close();
             }
@@ -88,6 +89,7 @@ public class JpaTransactionManager implements LumenTransactionManager {
                     em.getTransaction().rollback();
                 }
             } finally {
+                restoreIsolation(em, sts.getPreviousIsolationLevel());
                 EntityManagerHolder.clear();
                 em.close();
             }
@@ -101,11 +103,12 @@ public class JpaTransactionManager implements LumenTransactionManager {
                                              EntityManager suspended) {
         EntityManager em = emf.createEntityManager();
         EntityManagerHolder.set(em);
-        applyIsolation(em, isolation);
+        Integer previousIsolationLevel = applyIsolation(em, isolation);
         em.getTransaction().begin();
         if (readOnly) em.setFlushMode(FlushModeType.COMMIT);
         SimpleTransactionStatus status = new SimpleTransactionStatus(true, true);
         status.setSuspendedEm(suspended);
+        status.setPreviousIsolationLevel(previousIsolationLevel);
         return status;
     }
 
@@ -115,14 +118,41 @@ public class JpaTransactionManager implements LumenTransactionManager {
         }
     }
 
-    private void applyIsolation(EntityManager em, Isolation isolation) {
-        if (isolation == Isolation.DEFAULT) return;
+    /**
+     * Changes the connection's isolation level and returns what it was before, so it can be
+     * restored in {@link #restoreIsolation} once this transaction completes. Returning null means
+     * "nothing to restore" (DEFAULT was requested, the level already matched, or the change
+     * itself failed) — restoreIsolation treats that as a no-op.
+     * <p>
+     * This can't be left to whatever hands out connections: a real pool like HikariCP resets a
+     * changed isolation level on its own when the connection is returned, but Hibernate's
+     * built-in (non-Hikari) connection handling does not, so a SERIALIZABLE transaction here would
+     * otherwise leak that isolation level into whichever transaction borrows the connection next.
+     */
+    private Integer applyIsolation(EntityManager em, Isolation isolation) {
+        if (isolation == Isolation.DEFAULT) return null;
         try {
             org.hibernate.Session session = em.unwrap(org.hibernate.Session.class);
             final int level = isolation.jdbcLevel();
-            session.doWork(conn -> conn.setTransactionIsolation(level));
+            final int[] previous = new int[1];
+            session.doWork(conn -> {
+                previous[0] = conn.getTransactionIsolation();
+                conn.setTransactionIsolation(level);
+            });
+            return previous[0] == level ? null : previous[0];
         } catch (Exception e) {
             logger.debug("Could not apply isolation level {} — {}", isolation, e.getMessage());
+            return null;
+        }
+    }
+
+    private void restoreIsolation(EntityManager em, Integer previousLevel) {
+        if (previousLevel == null) return;
+        try {
+            org.hibernate.Session session = em.unwrap(org.hibernate.Session.class);
+            session.doWork(conn -> conn.setTransactionIsolation(previousLevel));
+        } catch (Exception e) {
+            logger.debug("Could not restore isolation level {} — {}", previousLevel, e.getMessage());
         }
     }
 }

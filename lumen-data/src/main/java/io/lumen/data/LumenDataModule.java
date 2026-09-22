@@ -6,6 +6,7 @@ import io.lumen.core.annotation.Order;
 import io.lumen.core.component.LightContainer;
 import io.lumen.core.context.Environment;
 import io.lumen.data.annotation.Repository;
+import io.lumen.data.exception.InvalidDdlAutoException;
 import io.lumen.data.transaction.JpaTransactionManager;
 import io.lumen.data.transaction.LumenTransactionManager;
 import io.lumen.data.transaction.TransactionalProcessor;
@@ -18,9 +19,13 @@ import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 
 import javax.sql.DataSource;
 import java.util.List;
+import java.util.Set;
 
 @Order(Integer.MAX_VALUE)
 public class LumenDataModule implements LumenModule {
+
+    private static final Set<String> VALID_DDL_AUTO_VALUES =
+            Set.of("none", "validate", "update", "create", "create-drop");
 
     @Override
     public void init(LightContainer container, String... basePackages) {
@@ -54,8 +59,11 @@ public class LumenDataModule implements LumenModule {
                 .filter(c -> c.isAnnotationPresent(Entity.class))
                 .toList();
 
+        String ddlAuto = env.getProperty("lumen.jpa.ddl-auto", "none");
+        validateDdlAuto(ddlAuto);
+
         StandardServiceRegistryBuilder builder = new StandardServiceRegistryBuilder()
-                .applySetting("hibernate.hbm2ddl.auto", env.getProperty("lumen.jpa.ddl-auto", "none"));
+                .applySetting("hibernate.hbm2ddl.auto", ddlAuto);
 
         // LumenDatasourceModule (@Order 5) registers the DataSource as an external instance
         // before this module runs. Fall back to plain JDBC settings if HikariCP was absent.
@@ -84,6 +92,17 @@ public class LumenDataModule implements LumenModule {
             return true;
         } catch (ClassNotFoundException e) {
             return false;
+        }
+    }
+
+    /**
+     * Hibernate treats an unrecognized {@code hibernate.hbm2ddl.auto} value as "do nothing" —
+     * a typo like {@code drop-and-create} would otherwise silently no-op instead of failing.
+     */
+    void validateDdlAuto(String ddlAuto) {
+        if (!VALID_DDL_AUTO_VALUES.contains(ddlAuto)) {
+            throw new InvalidDdlAutoException(
+                    "'" + ddlAuto + "' is not a valid value for lumen.jpa.ddl-auto");
         }
     }
 
