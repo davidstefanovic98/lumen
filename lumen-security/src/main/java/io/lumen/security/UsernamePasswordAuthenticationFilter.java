@@ -60,10 +60,7 @@ public class UsernamePasswordAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean requiresAuthentication(HttpServletRequest request) {
-        String path = request.getPathInfo();
-        if (path == null)
-            path = request.getServletPath();
-        return HttpMethod.POST.matches(request.getMethod()) && loginUrl.equals(path);
+        return HttpMethod.POST.matches(request.getMethod()) && loginUrl.equals(RequestPaths.resolve(request));
     }
 
     protected void onSuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, Authentication auth) throws IOException {

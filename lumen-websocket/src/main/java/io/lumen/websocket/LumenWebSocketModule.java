@@ -9,6 +9,7 @@ import io.lumen.websocket.annotation.LumenWebSocket;
 import io.lumen.websocket.support.WebSocketHandlerProcessor;
 import io.lumen.websocket.support.WebSocketHandlerRegistry;
 import io.lumen.websocket.support.WebSocketInitializer;
+import io.lumen.websocket.support.WebSocketOriginCaptureFilter;
 
 import java.util.Arrays;
 import java.util.List;
@@ -25,6 +26,7 @@ public class LumenWebSocketModule implements LumenModule {
         container.registerExternalInstance(WebSocketHandlerRegistry.class, registry);
 
         container.addPostProcessor(new WebSocketHandlerProcessor(registry));
+        container.registerExternalInstance(WebSocketOriginCaptureFilter.class, new WebSocketOriginCaptureFilter());
 
         PackageScanner.scan(basePackages).forEach(clazz -> {
             if (clazz.isAnnotationPresent(LumenWebSocket.class)

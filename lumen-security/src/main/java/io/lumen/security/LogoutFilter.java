@@ -33,10 +33,7 @@ public class LogoutFilter extends OncePerRequestFilter {
     }
 
     private boolean requiresLogout(HttpServletRequest request) {
-        if (!HttpMethod.POST.matches(request.getMethod())) return false;
-        String path = request.getPathInfo();
-        if (path == null) path = request.getServletPath();
-        return logoutUrl.equals(path);
+        return HttpMethod.POST.matches(request.getMethod()) && logoutUrl.equals(RequestPaths.resolve(request));
     }
 
     private void performLogout(HttpServletRequest request, HttpServletResponse response) throws IOException {

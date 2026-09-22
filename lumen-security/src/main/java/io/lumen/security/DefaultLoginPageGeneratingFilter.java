@@ -15,10 +15,7 @@ public class DefaultLoginPageGeneratingFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String path = request.getPathInfo();
-        if (path == null)
-            path = request.getServletPath();
-        if (HttpMethod.GET.matches(request.getMethod()) && "/login".equals(path)) {
+        if (HttpMethod.GET.matches(request.getMethod()) && "/login".equals(RequestPaths.resolve(request))) {
             boolean hasError = request.getParameter("error") != null;
             boolean isLogout = request.getParameter("logout") != null;
             renderDefaultLoginPage(response, hasError, isLogout);

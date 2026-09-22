@@ -1,5 +1,6 @@
 package io.lumen.security;
 
+import io.lumen.security.authority.RoleAuthorities;
 import io.lumen.web.http.HttpMethod;
 
 import java.util.List;
@@ -39,11 +40,12 @@ public class AuthorizeRequestBuilder {
         }
 
         public AuthorizeRequestBuilder hasRole(String role) {
+            String authority = RoleAuthorities.normalize(role);
             for (String pattern : patterns) {
                 RequestMatcher matcher = httpMethod != null
                         ? new AntPathRequestMatcher(pattern, httpMethod)
                         : new AntPathRequestMatcher(pattern);
-                builder.rules.add(new AuthorizationRule(matcher, role));
+                builder.rules.add(new AuthorizationRule(matcher, authority));
             }
             return builder;
         }
@@ -79,8 +81,9 @@ public class AuthorizeRequestBuilder {
         }
 
         public AuthorizeRequestBuilder hasRole(String role) {
+            String authority = RoleAuthorities.normalize(role);
             for (String regex : regexes) {
-                builder.rules.add(new AuthorizationRule(new RegexRequestMatcher(regex), role));
+                builder.rules.add(new AuthorizationRule(new RegexRequestMatcher(regex), authority));
             }
             return builder;
         }

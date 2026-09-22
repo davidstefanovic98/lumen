@@ -37,8 +37,12 @@ class OriginValidatingConfigurator extends ServerEndpointConfig.Configurator {
     @Override
     public boolean checkOrigin(String originHeaderValue) {
         if (allowedOrigins.isEmpty()) {
-            // No explicit origins — same-origin only (default secure behaviour)
-            return true;
+            // No explicit origins — same-origin only (default secure behaviour). The expected
+            // origin is captured by WebSocketOriginCaptureFilter earlier in the request; if it's
+            // missing (the filter didn't run for some reason) fail closed rather than allow
+            // everything, which was the bug this replaced.
+            String expected = WebSocketOriginContext.get();
+            return expected != null && expected.equalsIgnoreCase(originHeaderValue);
         }
         if (allowedOrigins.contains("*")) {
             return true;

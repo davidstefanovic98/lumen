@@ -20,7 +20,9 @@ class RequestPathsTest {
     }
 
     @Test
-    void prefersServletPathWhenPresent() {
+    void fallsBackToServletPathWhenPathInfoAbsent() {
+        // Path-mapped servlet (/*) — how Lumen's own DispatcherServlet is always registered:
+        // pathInfo is null, servletPath already holds the full path.
         HttpServletRequest req = request("/api/users", null, "/api/users", "");
 
         assertEquals("/api/users", RequestPaths.resolve(req));
@@ -31,6 +33,17 @@ class RequestPathsTest {
         HttpServletRequest req = request("", "/api/users", "/api/users", "");
 
         assertEquals("/api/users", RequestPaths.resolve(req));
+    }
+
+    @Test
+    void prefersPathInfoOverServletPath_forPrefixMappedServlet() {
+        // Prefix-mapped servlet (/api/*): servletPath is just the mapping prefix, pathInfo is
+        // the actual sub-path. Preferring servletPath here would silently match the wrong
+        // string — this is what previously made LogoutFilter/UsernamePasswordAuthenticationFilter
+        // deliberately resolve pathInfo first instead of delegating to this helper.
+        HttpServletRequest req = request("/api", "/logout", "/api/logout", "");
+
+        assertEquals("/logout", RequestPaths.resolve(req));
     }
 
     @Test
