@@ -7,8 +7,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Turns an exception into an HTTP response. {@link #resolve} always writes one: the specific
+ * resolvers are tried in order, and {@link DefaultExceptionResolver} terminates the chain
+ * ({@code @ResponseStatus} on the exception type, otherwise a logged 500), so callers never
+ * need an "unresolved" fallback of their own.
+ */
 public class CompositeExceptionResolver {
     private final List<ExceptionResolver> resolvers;
+    private final DefaultExceptionResolver terminal;
 
     public CompositeExceptionResolver(ControllerAdviceRegistry adviceRegistry, ResponseBodyWriter bodyWriter) {
         ErrorResponseWriter errorWriter = new ErrorResponseWriter(bodyWriter);
@@ -19,17 +26,17 @@ public class CompositeExceptionResolver {
             list.add(new ValidationExceptionResolver(errorWriter));
         }
 
-        list.add(new DefaultExceptionResolver(errorWriter));
         this.resolvers = list;
+        this.terminal = new DefaultExceptionResolver(errorWriter);
     }
 
-    public boolean resolve(HttpServletRequest req, HttpServletResponse resp, Exception ex) {
+    public void resolve(HttpServletRequest req, HttpServletResponse resp, Exception ex) {
         for (ExceptionResolver resolver : resolvers) {
             if (resolver.resolve(req, resp, ex)) {
-                return true;
+                return;
             }
         }
-        return false;
+        terminal.resolve(req, resp, ex);
     }
 
     private boolean isValidationPresent() {

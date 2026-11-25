@@ -1,5 +1,6 @@
 package io.lumen.security;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
@@ -30,17 +31,19 @@ public abstract class OncePerRequestFilter implements SecuritySubFilter {
 
         String alreadyFilteredAttributeName = getAlreadyFilteredAttributeName();
 
-        if (request.getAttribute(alreadyFilteredAttributeName) != null) {
+        if (request.getAttribute(alreadyFilteredAttributeName) != null
+                && request.getDispatcherType() != DispatcherType.ASYNC) {
             chain.doFilter(request, response);
         } else {
-            // Mark it as filtered
+            // The attribute is never removed, so the filter stays 'filtered' for the rest of the
+            // request - nested FORWARD/INCLUDE dispatches and ERROR dispatches skip it. ASYNC is the
+            // exception: a CompletableFuture handler's outcome is processed on a fresh ASYNC
+            // dispatch, on a different thread, after the original filter invocations have already
+            // returned. The chain has to run again there so SecurityContextPersistenceFilter
+            // re-establishes the SecurityContext and ExceptionTranslationFilter can translate an
+            // AccessDeniedException the future failed with - otherwise it would surface as a 500.
             request.setAttribute(alreadyFilteredAttributeName, Boolean.TRUE);
-            try {
-                doFilterInternal(httpRequest, httpResponse, chain);
-            } finally {
-                // We typically don't remove the attribute so it stays 'filtered'
-                // throughout the entire request lifecycle (even during forwards)
-            }
+            doFilterInternal(httpRequest, httpResponse, chain);
         }
     }
 

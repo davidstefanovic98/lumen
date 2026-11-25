@@ -14,6 +14,7 @@ import java.io.IOException;
 public class LoggingFilter implements LumenFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(LoggingFilter.class);
+    private static final String START_ATTRIBUTE = LoggingFilter.class.getName() + ".START";
 
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
@@ -21,13 +22,19 @@ public class LoggingFilter implements LumenFilter {
         HttpServletRequest  request  = (HttpServletRequest)  req;
         HttpServletResponse response = (HttpServletResponse) res;
 
-        long start = System.currentTimeMillis();
+        // Kept on the request so an async request's duration spans every dispatch, not just the last one
+        long start = request.getAttribute(START_ATTRIBUTE) instanceof Long first ? first : System.currentTimeMillis();
+        request.setAttribute(START_ATTRIBUTE, start);
         try {
             chain.doFilter(request, response);
         } finally {
-            long ms = System.currentTimeMillis() - start;
-            logger.debug("{} {} → {} ({}ms)",
-                    request.getMethod(), request.getRequestURI(), response.getStatus(), ms);
+            // A CompletableFuture handler leaves the request in async mode here with no final
+            // status yet; it is logged on the ASYNC re-dispatch that actually writes the response.
+            if (!request.isAsyncStarted()) {
+                long ms = System.currentTimeMillis() - start;
+                logger.debug("{} {} → {} ({}ms)",
+                        request.getMethod(), request.getRequestURI(), response.getStatus(), ms);
+            }
         }
     }
 
