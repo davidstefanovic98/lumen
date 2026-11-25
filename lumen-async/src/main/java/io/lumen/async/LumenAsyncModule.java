@@ -6,6 +6,7 @@ import io.lumen.core.component.LightContainer;
 import io.lumen.core.context.Environment;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.core.task.TaskDecorator;
+import io.lumen.core.util.Suppliers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +55,7 @@ public class LumenAsyncModule implements LumenModule {
         // Resolve TaskDecorators lazily and once: at @Async invocation time the container is
         // fully initialized, so user @Component decorators and module-provided ones (e.g. the
         // security context decorator) are all visible. Resolved on first use, then cached.
-        Supplier<List<TaskDecorator>> decorators = memoize(() -> container.getLights(TaskDecorator.class));
+        Supplier<List<TaskDecorator>> decorators = Suppliers.memoize(() -> container.getLights(TaskDecorator.class));
 
         container.addPostProcessor(new AsyncProcessor(executor, handler, decorators));
         container.addPostProcessor(new ScheduledTaskProcessor(scheduledTasks));
@@ -69,26 +70,5 @@ public class LumenAsyncModule implements LumenModule {
     private int intProp(Environment env, String key, int defaultValue) {
         if (env == null) return defaultValue;
         return Integer.parseInt(env.getProperty(key, String.valueOf(defaultValue)));
-    }
-
-    /** Wraps a supplier so the delegate runs at most once; the result is cached thereafter. */
-    private static <T> Supplier<T> memoize(Supplier<T> delegate) {
-        return new Supplier<>() {
-            private volatile T value;
-            private volatile boolean resolved;
-
-            @Override
-            public T get() {
-                if (!resolved) {
-                    synchronized (this) {
-                        if (!resolved) {
-                            value = delegate.get();
-                            resolved = true;
-                        }
-                    }
-                }
-                return value;
-            }
-        };
     }
 }

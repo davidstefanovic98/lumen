@@ -27,6 +27,10 @@ public class LumenSecurityModule implements LumenModule {
 
         container.addPostProcessor(new MethodSecurityProcessor(), proxyOrder);
 
+        // Unhandled security exceptions escape the DispatcherServlet to ExceptionTranslationFilter
+        // instead of becoming a generic 500.
+        container.registerExternalInstance(SecurityExceptionMatcher.class, new SecurityExceptionMatcher());
+
         // Propagate SecurityContext into @Async worker threads. Picked up by lumen-async as a
         // TaskDecorator if that module is present; otherwise it sits unused (no async↔security coupling).
         container.registerExternalInstance(TaskDecorator.class, new SecurityContextTaskDecorator());

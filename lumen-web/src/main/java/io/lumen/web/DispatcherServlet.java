@@ -11,6 +11,7 @@ import io.lumen.web.http.HttpMethod;
 import io.lumen.web.resource.ResourceProvider;
 import io.lumen.web.resource.StaticResourceResultHandler;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -42,7 +43,7 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     @Override
-    protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String contextPath = req.getContextPath();
         String path = req.getRequestURI().substring(contextPath.length());
         if (path.isEmpty())
@@ -82,24 +83,11 @@ public class DispatcherServlet extends HttpServlet {
             throw new NotFoundException("No route or static resource found for " + method + " " + unquote(path));
 
         } catch (Exception e) {
-            handleException(req, resp, e);
+            // The single exception path for every request, synchronous or resumed-async. The
+            // resolvers either write a response or - for an exception a FilterChainExceptionMatcher
+            // claims (e.g. security exceptions) - rethrow it for the owning servlet filter.
+            exceptionResolver.resolve(req, resp, e);
         }
-    }
-
-    /**
-     * The single exception path for every request, synchronous or resumed-async: security
-     * exceptions propagate to the filter chain's ExceptionTranslationFilter, everything else is
-     * written by the exception resolvers (which always produce a response).
-     */
-    private void handleException(HttpServletRequest req, HttpServletResponse resp, Exception e) {
-        Throwable cause = e;
-        while (cause != null) {
-            if (cause.getClass().getName().equals("io.lumen.security.exception.AccessDeniedException")) {
-                throw new RuntimeException(e);
-            }
-            cause = cause.getCause();
-        }
-        exceptionResolver.resolve(req, resp, e);
     }
 
     private void handleControllerRequest(RouteMatch match, HttpServletRequest req, HttpServletResponse resp) throws Exception {
