@@ -405,8 +405,11 @@ Exceptions from the controller propagate to `CompositeExceptionResolver`, which 
 ```
 GlobalExceptionHandleResolver   — @ControllerAdvice + @ExceptionHandler
 ValidationExceptionResolver     — ValidationException → 422 (if lumen-validation present)
+FilterChainExceptionMatcher(s)  — claimed exceptions are rethrown for a servlet filter (e.g. security → ExceptionTranslationFilter)
 DefaultExceptionResolver        — @ResponseStatus on exception class, fallback 500
 ```
+
+A `@ExceptionHandler` always gets the first chance, including for security exceptions: `AccessDeniedException` / `AuthenticationException` only escape to `ExceptionTranslationFilter` (403 / 401 / login redirect) when no handler matched — the same precedence as Spring MVC. A catch-all `@ExceptionHandler(Exception.class)` therefore also catches them.
 
 The framework's own HTTP errors map through `@ResponseStatus` on the exception type, handled by `DefaultExceptionResolver`: `NotFoundException` → 404, `HttpMediaTypeNotSupportedException` → 415, `HttpMediaTypeNotAcceptableException` / `HttpMessageConvertException` → 406. `@ResponseStatus` is `@Inherited`, so subclasses keep their parent's status.
 

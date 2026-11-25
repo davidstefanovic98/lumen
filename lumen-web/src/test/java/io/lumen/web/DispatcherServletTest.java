@@ -46,7 +46,7 @@ class DispatcherServletTest {
 
         servlet = new DispatcherServlet(
                 registry,
-                new CompositeExceptionResolver(adviceRegistry, bodyWriter),
+                new CompositeExceptionResolver(adviceRegistry, bodyWriter, java.util.List::of),
                 invoker,
                 resourceProvider,
                 new StaticResourceResultHandler()

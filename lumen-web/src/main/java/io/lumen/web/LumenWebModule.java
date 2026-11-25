@@ -7,6 +7,7 @@ import io.lumen.core.component.LightContainer;
 import io.lumen.core.component.LightInstance;
 import io.lumen.core.component.processor.LightProcessor;
 import io.lumen.core.util.ReflectionUtil;
+import io.lumen.core.util.Suppliers;
 import io.lumen.web.annotation.Controller;
 import io.lumen.web.annotation.ControllerAdvice;
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
@@ -16,6 +17,7 @@ import io.lumen.web.context.WebLumenInitializer;
 import io.lumen.web.cors.CorsConfiguration;
 import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
+import io.lumen.web.exception.handle.FilterChainExceptionMatcher;
 import io.lumen.web.filter.CorsFilter;
 import io.lumen.web.filter.LoggingFilter;
 import io.lumen.web.handler.ResponseBodyWriter;
@@ -36,7 +38,10 @@ public class LumenWebModule implements LumenModule {
         ResponseBodyWriter bodyWriter = new ResponseBodyWriter(converterRegistry);
 
         ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
-        CompositeExceptionResolver exceptionResolver = new CompositeExceptionResolver(adviceRegistry, bodyWriter);
+        // Matchers are contributed by other modules (e.g. lumen-security) and by user lights, so
+        // they're collected on first use - after the container is initialized - not here.
+        CompositeExceptionResolver exceptionResolver = new CompositeExceptionResolver(adviceRegistry, bodyWriter,
+                Suppliers.memoize(() -> container.getLights(FilterChainExceptionMatcher.class)));
         RouteInvoker invoker = new RouteInvoker(bodyWriter, argumentResolver);
 
         container.registerExternalInstance(RouteRegistry.class, registry);
