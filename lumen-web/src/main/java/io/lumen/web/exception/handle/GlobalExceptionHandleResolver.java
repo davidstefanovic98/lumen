@@ -3,8 +3,7 @@ package io.lumen.web.exception.handle;
 import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.core.util.ReflectionUtil;
-import io.lumen.web.http.HttpMessageConverterRegistry;
-import io.lumen.web.http.ResponseEntity;
+import io.lumen.web.handler.ResponseBodyWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -15,12 +14,11 @@ public class GlobalExceptionHandleResolver implements ExceptionResolver {
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandleResolver.class);
 
     private final ControllerAdviceRegistry registry;
-    private final HttpMessageConverterRegistry converterRegistry;
+    private final ResponseBodyWriter bodyWriter;
 
-    public GlobalExceptionHandleResolver(ControllerAdviceRegistry registry,
-                                         HttpMessageConverterRegistry converterRegistry) {
+    public GlobalExceptionHandleResolver(ControllerAdviceRegistry registry, ResponseBodyWriter bodyWriter) {
         this.registry = registry;
-        this.converterRegistry = converterRegistry;
+        this.bodyWriter = bodyWriter;
     }
 
 
@@ -37,7 +35,7 @@ public class GlobalExceptionHandleResolver implements ExceptionResolver {
         if (handler != null) {
             try {
                 Object result = handler.method().invoke(handler.light(), throwable);
-                handleResult(result, resp);
+                bodyWriter.write(result, handler.method(), req, resp);
                 return true;
             } catch (Exception e) {
                 Throwable cause = e instanceof InvocationTargetException ite ? ite.getTargetException() : e;
@@ -57,27 +55,5 @@ public class GlobalExceptionHandleResolver implements ExceptionResolver {
         }
 
         return false;
-    }
-
-    private void handleResult(Object result, HttpServletResponse resp) {
-        if (result instanceof ResponseEntity<?> entity) {
-            resp.setStatus(entity.getStatus());
-            entity.getHeaders().forEach(resp::setHeader);
-            Object body = entity.getBody();
-            if (body == null)
-                return;
-
-            if (resp.getContentType() == null) {
-                if (body instanceof String) {
-                    resp.setContentType("text/plain;charset=UTF-8");
-                } else {
-                    resp.setContentType("application/json;charset=UTF-8");
-                }
-            }
-            converterRegistry.write(body, body.getClass(), resp);
-        } else if (result != null) {
-            resp.setStatus(200);
-            converterRegistry.write(result, result.getClass(), resp);
-        }
     }
 }

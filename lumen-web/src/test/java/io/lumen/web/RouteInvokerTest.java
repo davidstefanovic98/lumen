@@ -3,6 +3,7 @@ package io.lumen.web;
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
 import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
+import io.lumen.web.handler.ResponseBodyWriter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,8 +50,9 @@ class RouteInvokerTest {
     void setUp() throws Exception {
         HttpMessageConverterRegistry converterRegistry = new HttpMessageConverterRegistry();
         ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
-        invoker = new RouteInvoker(converterRegistry, new CompositeMethodArgumentResolver(),
-                new CompositeExceptionResolver(adviceRegistry, converterRegistry));
+        ResponseBodyWriter bodyWriter = new ResponseBodyWriter(converterRegistry);
+        invoker = new RouteInvoker(bodyWriter, new CompositeMethodArgumentResolver(),
+                new CompositeExceptionResolver(adviceRegistry, bodyWriter));
         controller = new TestController();
 
         response = mock(HttpServletResponse.class);

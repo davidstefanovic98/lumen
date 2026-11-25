@@ -5,9 +5,12 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.lumen.web.annotation.ExceptionHandler;
+import io.lumen.web.annotation.ResponseStatus;
+import io.lumen.web.handler.ResponseBodyWriter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
+import io.lumen.web.http.HttpStatus;
 import io.lumen.web.http.ResponseEntity;
-import jakarta.servlet.ServletOutputStream;
+import io.lumen.web.support.CapturingOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -38,10 +41,21 @@ class GlobalExceptionHandleResolverTest {
         }
     }
 
-    private final HttpMessageConverterRegistry converterRegistry = new HttpMessageConverterRegistry();
+    record ErrorBody(String code) {}
+
+    static class PlainBodyAdvice {
+        @ExceptionHandler(OrderNotFoundException.class)
+        @ResponseStatus(HttpStatus.BAD_REQUEST)
+        ErrorBody handle(OrderNotFoundException ex) {
+            return new ErrorBody(ex.getMessage());
+        }
+    }
+
+    private final ResponseBodyWriter bodyWriter = new ResponseBodyWriter(new HttpMessageConverterRegistry());
 
     private HttpServletRequest request;
     private HttpServletResponse response;
+    private CapturingOutputStream body;
 
     private Logger logbackLogger;
     private ListAppender<ILoggingEvent> logAppender;
@@ -50,7 +64,8 @@ class GlobalExceptionHandleResolverTest {
     void setUp() throws Exception {
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
-        when(response.getOutputStream()).thenReturn(mock(ServletOutputStream.class));
+        body = new CapturingOutputStream();
+        when(response.getOutputStream()).thenReturn(body);
 
         logbackLogger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandleResolver.class);
         logAppender = new ListAppender<>();
@@ -67,18 +82,35 @@ class GlobalExceptionHandleResolverTest {
     void resolve_matchingHandler_writesResponseEntityAndReturnsTrue() {
         ControllerAdviceRegistry registry = new ControllerAdviceRegistry();
         registry.registerAdvice(new WorkingAdvice());
-        GlobalExceptionHandleResolver resolver = new GlobalExceptionHandleResolver(registry, converterRegistry);
+        GlobalExceptionHandleResolver resolver = new GlobalExceptionHandleResolver(registry, bodyWriter);
 
         boolean handled = resolver.resolve(request, response, new OrderNotFoundException("order-42"));
 
         assertTrue(handled);
         verify(response).setStatus(404);
+        assertEquals("order-42", body.body());
+    }
+
+    @Test
+    void resolve_plainBodyHandler_honorsResponseStatusAndNegotiatesLikeAController() {
+        ControllerAdviceRegistry registry = new ControllerAdviceRegistry();
+        registry.registerAdvice(new PlainBodyAdvice());
+        GlobalExceptionHandleResolver resolver = new GlobalExceptionHandleResolver(registry, bodyWriter);
+
+        assertTrue(resolver.resolve(request, response, new OrderNotFoundException("order-42")));
+
+        // Same writer as RestResultHandler: @ResponseStatus on the handler method is honored
+        // (used to be a hardcoded 200), and the body goes through content negotiation.
+        verify(response).setStatus(400);
+        verify(response, never()).setStatus(200);
+        verify(response, atLeastOnce()).setContentType("application/json;charset=UTF-8");
+        assertEquals("{\"code\":\"order-42\"}", body.body());
     }
 
     @Test
     void resolve_noMatchingHandler_returnsFalse() {
         ControllerAdviceRegistry registry = new ControllerAdviceRegistry();
-        GlobalExceptionHandleResolver resolver = new GlobalExceptionHandleResolver(registry, converterRegistry);
+        GlobalExceptionHandleResolver resolver = new GlobalExceptionHandleResolver(registry, bodyWriter);
 
         boolean handled = resolver.resolve(request, response, new OrderNotFoundException("order-42"));
 
@@ -89,7 +121,7 @@ class GlobalExceptionHandleResolverTest {
     void resolve_handlerMethodThrows_returnsFalseAndLogsInsteadOfSwallowingSilently() {
         ControllerAdviceRegistry registry = new ControllerAdviceRegistry();
         registry.registerAdvice(new BrokenAdvice());
-        GlobalExceptionHandleResolver resolver = new GlobalExceptionHandleResolver(registry, converterRegistry);
+        GlobalExceptionHandleResolver resolver = new GlobalExceptionHandleResolver(registry, bodyWriter);
 
         boolean handled = resolver.resolve(request, response, new OrderNotFoundException("order-42"));
 

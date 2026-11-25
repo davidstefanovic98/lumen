@@ -1,6 +1,6 @@
 package io.lumen.web.exception.handle;
 
-import io.lumen.web.http.HttpMessageConverterRegistry;
+import io.lumen.web.handler.ResponseBodyWriter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -10,17 +10,16 @@ import java.util.List;
 public class CompositeExceptionResolver {
     private final List<ExceptionResolver> resolvers;
 
-    public CompositeExceptionResolver(ControllerAdviceRegistry adviceRegistry, HttpMessageConverterRegistry converterRegistry) {
+    public CompositeExceptionResolver(ControllerAdviceRegistry adviceRegistry, ResponseBodyWriter bodyWriter) {
+        ErrorResponseWriter errorWriter = new ErrorResponseWriter(bodyWriter);
         List<ExceptionResolver> list = new ArrayList<>();
-        list.add(new GlobalExceptionHandleResolver(adviceRegistry, converterRegistry));
-        list.add(new NotFoundExceptionResolver());
-        list.add(new MediaTypeExceptionResolver());
+        list.add(new GlobalExceptionHandleResolver(adviceRegistry, bodyWriter));
 
         if (isValidationPresent()) {
-            list.add(new ValidationExceptionResolver());
+            list.add(new ValidationExceptionResolver(errorWriter));
         }
 
-        list.add(new DefaultExceptionResolver());
+        list.add(new DefaultExceptionResolver(errorWriter));
         this.resolvers = list;
     }
 

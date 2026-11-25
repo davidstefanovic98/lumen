@@ -323,27 +323,30 @@ Wire it in a `LumenInitializer` or via a hook in `WebLumenInitializer`. The simp
 
 ---
 
-## 9. Custom ExceptionResolver
+## 9. Mapping Exceptions to HTTP Responses
 
-Implement `ExceptionResolver` and add it to the composite resolver chain via `LumenWebModule` or a custom `LumenInitializer`.
+The resolver chain itself is internal. There are two supported ways to control how an exception becomes a response, and neither involves writing JSON by hand.
+
+**Fixed status per exception type: `@ResponseStatus`.** The framework writes a standard `ErrorResponse` body (`{"status":404,"error":"Not Found","message":"<exception message>"}`). Subclasses inherit the status.
 
 ```java
-public class MyExceptionResolver implements ExceptionResolver {
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class OrderNotFoundException extends RuntimeException { ... }
+```
 
-    @Override
-    public boolean resolve(HttpServletRequest req, HttpServletResponse resp,
-                           Exception ex) throws IOException {
-        if (!(ex instanceof MyDomainException mde)) return false;
+**Full control: `@ControllerAdvice` + `@ExceptionHandler`.** The handler method's return value is written exactly like a controller's: `ResponseEntity` status wins, otherwise `@ResponseStatus` on the handler method, and the body is content-negotiated. Returning `ErrorResponse` keeps the body shape consistent with the framework's own errors.
 
-        resp.setStatus(mde.getHttpStatus().value());
-        resp.setContentType("application/json");
-        resp.getWriter().write("{\"error\":\"" + mde.getMessage() + "\"}");
-        return true;
+```java
+@ControllerAdvice
+public class ApiExceptionHandler {
+
+    @ExceptionHandler(MyDomainException.class)
+    public ResponseEntity<ErrorResponse> handle(MyDomainException ex) {
+        return ResponseEntity.status(ex.getHttpStatus().value())
+                .body(ErrorResponse.of(ex.getHttpStatus(), ex.getMessage()));
     }
 }
 ```
-
-`resolve()` must return `true` to signal that it handled the exception (preventing further resolvers from running), or `false` to pass it on.
 
 ---
 

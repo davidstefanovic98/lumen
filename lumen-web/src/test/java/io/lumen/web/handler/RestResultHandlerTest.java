@@ -17,10 +17,15 @@ import static org.mockito.Mockito.*;
 
 class RestResultHandlerTest {
 
-    private final RestResultHandler handler = new RestResultHandler(new HttpMessageConverterRegistry());
+    private final RestResultHandler handler = new RestResultHandler(new ResponseBodyWriter(new HttpMessageConverterRegistry()));
 
     static class TestController {
         public String plain() { return "hello"; }
+
+        public void noBody() {}
+
+        @ResponseStatus(HttpStatus.CREATED)
+        public void noBodyCreated() {}
 
         @ResponseStatus(HttpStatus.CREATED)
         public String created() { return "hello"; }
@@ -77,5 +82,29 @@ class RestResultHandlerTest {
         // ResponseEntity carries its own status explicitly, which always wins over @ResponseStatus
         verify(resp).setStatus(200);
         verify(resp, never()).setStatus(201);
+    }
+
+    @Test
+    void handle_nullResultWithoutResponseStatus_writes204InsteadOfFailing() throws Exception {
+        Route route = routeFor("noBody");
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse resp = mockResponse();
+
+        handler.handle(null, new Object[0], route, req, resp);
+
+        verify(resp).setStatus(204);
+        verify(resp, never()).getOutputStream();
+    }
+
+    @Test
+    void handle_nullResultWithResponseStatus_usesAnnotatedStatus() throws Exception {
+        Route route = routeFor("noBodyCreated");
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        HttpServletResponse resp = mockResponse();
+
+        handler.handle(null, new Object[0], route, req, resp);
+
+        verify(resp).setStatus(201);
+        verify(resp, never()).getOutputStream();
     }
 }

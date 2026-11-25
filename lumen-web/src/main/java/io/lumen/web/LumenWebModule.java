@@ -18,6 +18,7 @@ import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
 import io.lumen.web.filter.CorsFilter;
 import io.lumen.web.filter.LoggingFilter;
+import io.lumen.web.handler.ResponseBodyWriter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.resource.ResourceProvider;
 
@@ -30,12 +31,17 @@ public class LumenWebModule implements LumenModule {
         HttpMessageConverterRegistry converterRegistry = new HttpMessageConverterRegistry();
         CompositeMethodArgumentResolver argumentResolver = new CompositeMethodArgumentResolver();
 
+        // One writer shared by controller routes, @ExceptionHandler methods and built-in error
+        // responses, so the same return value always produces the same HTTP response.
+        ResponseBodyWriter bodyWriter = new ResponseBodyWriter(converterRegistry);
+
         ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
-        CompositeExceptionResolver exceptionResolver = new CompositeExceptionResolver(adviceRegistry, converterRegistry);
-        RouteInvoker invoker = new RouteInvoker(converterRegistry, argumentResolver, exceptionResolver);
+        CompositeExceptionResolver exceptionResolver = new CompositeExceptionResolver(adviceRegistry, bodyWriter);
+        RouteInvoker invoker = new RouteInvoker(bodyWriter, argumentResolver, exceptionResolver);
 
         container.registerExternalInstance(RouteRegistry.class, registry);
         container.registerExternalInstance(HttpMessageConverterRegistry.class, converterRegistry);
+        container.registerExternalInstance(ResponseBodyWriter.class, bodyWriter);
         container.registerExternalInstance(CompositeMethodArgumentResolver.class, argumentResolver);
         container.registerExternalInstance(ControllerAdviceRegistry.class, adviceRegistry);
         container.registerExternalInstance(CompositeExceptionResolver.class, exceptionResolver);
