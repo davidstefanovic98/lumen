@@ -4,9 +4,9 @@ import io.lumen.core.logging.Logger;
 import io.lumen.core.logging.LoggerFactory;
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
 import io.lumen.web.exception.handle.CompositeExceptionResolver;
+import io.lumen.web.handler.ResponseBodyWriter;
 import io.lumen.web.handler.RestResultHandler;
 import io.lumen.web.handler.RouteResultHandler;
-import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.http.HttpStatus;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,12 +29,12 @@ public class RouteInvoker {
     private final CompositeExceptionResolver exceptionResolver;
     private final List<RouteResultHandler> resultHandlers = new ArrayList<>();
 
-    public RouteInvoker(HttpMessageConverterRegistry registry,
+    public RouteInvoker(ResponseBodyWriter bodyWriter,
                         CompositeMethodArgumentResolver argResolver,
                         CompositeExceptionResolver exceptionResolver) {
         this.argumentResolver = argResolver;
         this.exceptionResolver = exceptionResolver;
-        resultHandlers.add(new RestResultHandler(registry));
+        resultHandlers.add(new RestResultHandler(bodyWriter));
     }
 
     public void addResultHandler(RouteResultHandler handler) {

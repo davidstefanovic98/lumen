@@ -404,10 +404,17 @@ Exceptions from the controller propagate to `CompositeExceptionResolver`, which 
 
 ```
 GlobalExceptionHandleResolver   — @ControllerAdvice + @ExceptionHandler
-NotFoundExceptionResolver       — NotFoundException → 404
-MediaTypeExceptionResolver      — unsupported content type → 415
 ValidationExceptionResolver     — ValidationException → 422 (if lumen-validation present)
 DefaultExceptionResolver        — @ResponseStatus on exception class, fallback 500
+```
+
+The framework's own HTTP errors map through `@ResponseStatus` on the exception type, handled by `DefaultExceptionResolver`: `NotFoundException` → 404, `HttpMediaTypeNotSupportedException` → 415, `HttpMediaTypeNotAcceptableException` / `HttpMessageConvertException` → 406. `@ResponseStatus` is `@Inherited`, so subclasses keep their parent's status.
+
+Every response — controller results, `@ExceptionHandler` results, and built-in errors — is written by the same `ResponseBodyWriter`, and every built-in error body has the same `ErrorResponse` shape:
+
+```json
+{"status":404,"error":"Not Found","message":"No route or static resource found for GET /x"}
+{"status":422,"error":"Unprocessable Entity","message":"Validation failed with 1 violation(s)","violations":[{"field":"name","message":"must not be blank"}]}
 ```
 
 ---

@@ -3,18 +3,19 @@ package io.lumen.web;
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
 import io.lumen.web.exception.handle.CompositeExceptionResolver;
 import io.lumen.web.exception.handle.ControllerAdviceRegistry;
+import io.lumen.web.handler.ResponseBodyWriter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.resource.ResourceProvider;
 import io.lumen.web.resource.StaticResourceResultHandler;
+import io.lumen.web.support.CapturingOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Method;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 class DispatcherServletTest {
@@ -25,6 +26,7 @@ class DispatcherServletTest {
     ResourceProvider resourceProvider;
     HttpServletRequest request;
     HttpServletResponse response;
+    CapturingOutputStream responseBody;
 
     static class FakeController {
         public void handle() {}
@@ -35,15 +37,16 @@ class DispatcherServletTest {
         registry = new RouteRegistry();
         HttpMessageConverterRegistry converterRegistry = new HttpMessageConverterRegistry();
         ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
-        invoker = spy(new RouteInvoker(converterRegistry, new CompositeMethodArgumentResolver(),
-                new CompositeExceptionResolver(adviceRegistry, converterRegistry)));
+        ResponseBodyWriter bodyWriter = new ResponseBodyWriter(converterRegistry);
+        invoker = spy(new RouteInvoker(bodyWriter, new CompositeMethodArgumentResolver(),
+                new CompositeExceptionResolver(adviceRegistry, bodyWriter)));
         resourceProvider = mock(ResourceProvider.class);
         when(resourceProvider.getResource(anyString())).thenReturn(null);
         when(resourceProvider.getWelcomePage()).thenReturn(null);
 
         servlet = new DispatcherServlet(
                 registry,
-                new CompositeExceptionResolver(adviceRegistry, converterRegistry),
+                new CompositeExceptionResolver(adviceRegistry, bodyWriter),
                 invoker,
                 resourceProvider,
                 new StaticResourceResultHandler()
@@ -52,7 +55,8 @@ class DispatcherServletTest {
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
         when(request.getContextPath()).thenReturn("");
-        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+        responseBody = new CapturingOutputStream();
+        when(response.getOutputStream()).thenReturn(responseBody);
     }
 
     private void registerRoute(String httpMethod, String pattern) throws Exception {
@@ -82,8 +86,10 @@ class DispatcherServletTest {
 
         servlet.service(request, response);
 
-        // NotFoundException is handled by NotFoundExceptionResolver → 404
+        // NotFoundException carries @ResponseStatus(NOT_FOUND) → 404 via DefaultExceptionResolver
         verify(response).setStatus(404);
+        assertEquals("{\"status\":404,\"error\":\"Not Found\",\"message\":\"No route or static resource found for GET /nonexistent\"}",
+                responseBody.body());
     }
 
     private void registerProducingRoute(String pattern, String produces) throws Exception {
@@ -144,6 +150,25 @@ class DispatcherServletTest {
         servlet.service(request, response);
 
         verify(response).setStatus(406);
+        assertEquals("{\"status\":406,\"error\":\"Not Acceptable\",\"message\":\"Supported: application/json\"}",
+                responseBody.body());
+    }
+
+    @Test
+    void unsupportedContentType_causes415() throws Exception {
+        Object controller = new FakeController();
+        Route route = new Route(controller, FakeController.class.getMethod("handle"), "POST", "/api/upload");
+        route.setConsumes(new String[]{"application/json"});
+        registry.register(route);
+        when(request.getRequestURI()).thenReturn("/api/upload");
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getContentType()).thenReturn("text/plain");
+
+        servlet.service(request, response);
+
+        verify(response).setStatus(415);
+        assertEquals("{\"status\":415,\"error\":\"Unsupported Media Type\",\"message\":\"Expected: application/json\"}",
+                responseBody.body());
     }
 
     @Test
