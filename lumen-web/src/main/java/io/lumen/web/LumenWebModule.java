@@ -37,7 +37,7 @@ public class LumenWebModule implements LumenModule {
 
         ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
         CompositeExceptionResolver exceptionResolver = new CompositeExceptionResolver(adviceRegistry, bodyWriter);
-        RouteInvoker invoker = new RouteInvoker(bodyWriter, argumentResolver, exceptionResolver);
+        RouteInvoker invoker = new RouteInvoker(bodyWriter, argumentResolver);
 
         container.registerExternalInstance(RouteRegistry.class, registry);
         container.registerExternalInstance(HttpMessageConverterRegistry.class, converterRegistry);

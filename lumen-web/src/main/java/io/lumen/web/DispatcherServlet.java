@@ -10,6 +10,7 @@ import io.lumen.web.flash.FlashMapManager;
 import io.lumen.web.http.HttpMethod;
 import io.lumen.web.resource.ResourceProvider;
 import io.lumen.web.resource.StaticResourceResultHandler;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -54,6 +55,12 @@ public class DispatcherServlet extends HttpServlet {
         String method = req.getMethod();
 
         try {
+            // A CompletableFuture handler's outcome arriving on its ASYNC re-dispatch: finish it
+            // here, inside the same try/catch, instead of matching (and re-invoking) the route.
+            if (req.getDispatcherType() == DispatcherType.ASYNC && invoker.resumeAsync(req, resp)) {
+                return;
+            }
+
             RouteMatch match = registry.findMatch(path, method);
 
             if (match != null) {
@@ -75,19 +82,24 @@ public class DispatcherServlet extends HttpServlet {
             throw new NotFoundException("No route or static resource found for " + method + " " + unquote(path));
 
         } catch (Exception e) {
-            // Let security exceptions propagate so ExceptionTranslationFilter can handle them
-            Throwable cause = e;
-            while (cause != null) {
-                if (cause.getClass().getName().equals("io.lumen.security.exception.AccessDeniedException")) {
-                    throw new RuntimeException(e);
-                }
-                cause = cause.getCause();
-            }
-            if (!exceptionResolver.resolve(req, resp, e)) {
-                logger.error("Unresolved error in DispatcherServlet", e);
-                resp.sendError(500, "Internal Server Error");
-            }
+            handleException(req, resp, e);
         }
+    }
+
+    /**
+     * The single exception path for every request, synchronous or resumed-async: security
+     * exceptions propagate to the filter chain's ExceptionTranslationFilter, everything else is
+     * written by the exception resolvers (which always produce a response).
+     */
+    private void handleException(HttpServletRequest req, HttpServletResponse resp, Exception e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause.getClass().getName().equals("io.lumen.security.exception.AccessDeniedException")) {
+                throw new RuntimeException(e);
+            }
+            cause = cause.getCause();
+        }
+        exceptionResolver.resolve(req, resp, e);
     }
 
     private void handleControllerRequest(RouteMatch match, HttpServletRequest req, HttpServletResponse resp) throws Exception {

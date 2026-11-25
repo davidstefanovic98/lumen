@@ -1,8 +1,6 @@
 package io.lumen.web;
 
 import io.lumen.web.argument.CompositeMethodArgumentResolver;
-import io.lumen.web.exception.handle.CompositeExceptionResolver;
-import io.lumen.web.exception.handle.ControllerAdviceRegistry;
 import io.lumen.web.handler.ResponseBodyWriter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import jakarta.servlet.AsyncContext;
@@ -11,9 +9,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -49,23 +46,26 @@ class RouteInvokerTest {
     @BeforeEach
     void setUp() throws Exception {
         HttpMessageConverterRegistry converterRegistry = new HttpMessageConverterRegistry();
-        ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
         ResponseBodyWriter bodyWriter = new ResponseBodyWriter(converterRegistry);
-        invoker = new RouteInvoker(bodyWriter, new CompositeMethodArgumentResolver(),
-                new CompositeExceptionResolver(adviceRegistry, bodyWriter));
+        invoker = new RouteInvoker(bodyWriter, new CompositeMethodArgumentResolver());
         controller = new TestController();
 
         response = mock(HttpServletResponse.class);
-        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
+
+        // Request attributes are real, so the stored async outcome survives into resumeAsync()
+        request = mock(HttpServletRequest.class);
+        Map<String, Object> attributes = new HashMap<>();
+        doAnswer(inv -> attributes.put(inv.getArgument(0), inv.getArgument(1)))
+                .when(request).setAttribute(anyString(), any());
+        doAnswer(inv -> attributes.remove(inv.<String>getArgument(0)))
+                .when(request).removeAttribute(anyString());
+        when(request.getAttribute(anyString())).thenAnswer(inv -> attributes.get(inv.<String>getArgument(0)));
+        when(request.getContextPath()).thenReturn("");
 
         asyncContext = mock(AsyncContext.class);
-        when(asyncContext.getRequest()).thenReturn(mock(HttpServletRequest.class));
+        when(asyncContext.getRequest()).thenReturn(request);
         when(asyncContext.getResponse()).thenReturn(response);
-
-        request = mock(HttpServletRequest.class);
-        when(request.getContextPath()).thenReturn("");
         when(request.startAsync()).thenReturn(asyncContext);
-        when(response.getWriter()).thenReturn(new PrintWriter(new StringWriter()));
     }
 
     private RouteMatch matchFor(String methodName) throws Exception {
@@ -99,31 +99,55 @@ class RouteInvokerTest {
     }
 
     // --- CompletableFuture ---
+    // The future's outcome is not written from the completing thread: it is stored on the request
+    // and the request is re-dispatched, so DispatcherServlet handles it through the normal path.
 
     @Test
-    void completableFuture_callsStartAsync() throws Exception {
+    void completableFuture_startsAsyncAndRedispatchesOnCompletion() throws Exception {
         invoker.invokeAndWrite(matchFor("futureReturnsValue"), request, response);
+
         verify(request).startAsync();
-    }
-
-    @Test
-    void completableFuture_completesAsyncContext_onSuccess() throws Exception {
-        invoker.invokeAndWrite(matchFor("futureReturnsValue"), request, response);
         // whenComplete runs synchronously for already-completed futures
-        verify(asyncContext).complete();
+        verify(asyncContext).dispatch();
+        verify(asyncContext, never()).complete();
+        verify(response, never()).setStatus(anyInt());
     }
 
     @Test
-    void completableFuture_completesAsyncContext_onFailure() throws Exception {
+    void completableFuture_failure_isRedispatchedNotResolvedOnTheCompletingThread() throws Exception {
         invoker.invokeAndWrite(matchFor("futureThrows"), request, response);
-        verify(asyncContext).complete();
+
+        verify(asyncContext).dispatch();
+        verify(response, never()).setStatus(anyInt());
     }
 
     @Test
-    void completableFuture_nullResult_sets204() throws Exception {
-        invoker.invokeAndWrite(matchFor("futureReturnsNull"), request, response);
-        verify(response).setStatus(204);
-        verify(asyncContext).complete();
+    void resumeAsync_failure_rethrowsTheOriginalExceptionUnwrapped() throws Exception {
+        invoker.invokeAndWrite(matchFor("futureThrows"), request, response);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> invoker.resumeAsync(request, response));
+        assertEquals("async-boom", ex.getMessage());
     }
 
+    @Test
+    void resumeAsync_nullResult_sets204() throws Exception {
+        invoker.invokeAndWrite(matchFor("futureReturnsNull"), request, response);
+
+        assertTrue(invoker.resumeAsync(request, response));
+        verify(response).setStatus(204);
+    }
+
+    @Test
+    void resumeAsync_consumesTheOutcome_soItIsHandledOnlyOnce() throws Exception {
+        invoker.invokeAndWrite(matchFor("futureReturnsNull"), request, response);
+
+        assertTrue(invoker.resumeAsync(request, response));
+        assertFalse(invoker.resumeAsync(request, response));
+    }
+
+    @Test
+    void resumeAsync_withoutStoredOutcome_returnsFalse() throws Exception {
+        assertFalse(invoker.resumeAsync(request, response));
+    }
 }

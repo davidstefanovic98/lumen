@@ -8,6 +8,7 @@ import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.resource.ResourceProvider;
 import io.lumen.web.resource.StaticResourceResultHandler;
 import io.lumen.web.support.CapturingOutputStream;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,8 +39,7 @@ class DispatcherServletTest {
         HttpMessageConverterRegistry converterRegistry = new HttpMessageConverterRegistry();
         ControllerAdviceRegistry adviceRegistry = new ControllerAdviceRegistry();
         ResponseBodyWriter bodyWriter = new ResponseBodyWriter(converterRegistry);
-        invoker = spy(new RouteInvoker(bodyWriter, new CompositeMethodArgumentResolver(),
-                new CompositeExceptionResolver(adviceRegistry, bodyWriter)));
+        invoker = spy(new RouteInvoker(bodyWriter, new CompositeMethodArgumentResolver()));
         resourceProvider = mock(ResourceProvider.class);
         when(resourceProvider.getResource(anyString())).thenReturn(null);
         when(resourceProvider.getWelcomePage()).thenReturn(null);
@@ -77,6 +77,62 @@ class DispatcherServletTest {
         servlet.service(request, response);
 
         verify(invoker).invokeAndWrite(any(RouteMatch.class), eq(request), eq(response));
+    }
+
+    // --- ASYNC re-dispatch of a CompletableFuture handler ---
+
+    @Test
+    void asyncDispatchWithStoredOutcome_resumesInsteadOfReinvokingTheRoute() throws Exception {
+        registerRoute("GET", "/ping");
+        when(request.getRequestURI()).thenReturn("/ping");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getDispatcherType()).thenReturn(DispatcherType.ASYNC);
+        doReturn(true).when(invoker).resumeAsync(request, response);
+
+        servlet.service(request, response);
+
+        verify(invoker).resumeAsync(request, response);
+        verify(invoker, never()).invokeAndWrite(any(), any(), any());
+    }
+
+    @Test
+    void asyncDispatchWithStoredFailure_goesThroughTheSameExceptionPathAsSync() throws Exception {
+        when(request.getRequestURI()).thenReturn("/ping");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getDispatcherType()).thenReturn(DispatcherType.ASYNC);
+        doThrow(new IllegalStateException("async-boom")).when(invoker).resumeAsync(request, response);
+
+        servlet.service(request, response);
+
+        verify(response).setStatus(500);
+        assertEquals("{\"status\":500,\"error\":\"Internal Server Error\",\"message\":\"async-boom\"}",
+                responseBody.body());
+    }
+
+    @Test
+    void asyncDispatchWithoutStoredOutcome_isRoutedNormally() throws Exception {
+        registerRoute("GET", "/ping");
+        when(request.getRequestURI()).thenReturn("/ping");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getDispatcherType()).thenReturn(DispatcherType.ASYNC);
+        doNothing().when(invoker).invokeAndWrite(any(), any(), any());
+
+        servlet.service(request, response);
+
+        verify(invoker).invokeAndWrite(any(RouteMatch.class), eq(request), eq(response));
+    }
+
+    @Test
+    void requestDispatch_neverConsultsAsyncOutcome() throws Exception {
+        registerRoute("GET", "/ping");
+        when(request.getRequestURI()).thenReturn("/ping");
+        when(request.getMethod()).thenReturn("GET");
+        when(request.getDispatcherType()).thenReturn(DispatcherType.REQUEST);
+        doNothing().when(invoker).invokeAndWrite(any(), any(), any());
+
+        servlet.service(request, response);
+
+        verify(invoker, never()).resumeAsync(any(), any());
     }
 
     @Test
