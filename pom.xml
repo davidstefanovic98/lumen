@@ -26,10 +26,41 @@
                 <artifactId>byte-buddy-agent</artifactId>
                 <version>1.18.8</version>
             </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>5.24.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <build>
+        <pluginManagement>
+            <plugins>
+                <!--
+                    Mockito's inline mock maker needs an instrumentation agent. Self-attaching it at
+                    runtime is deprecated (JEP 451) and fails outright on some JDK builds, so modules
+                    that use Mockito load it statically instead. Inert until a module declares this
+                    plugin; such a module then sets
+                        <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
+                    on maven-surefire-plugin. Kept out of the parent's global build because
+                    applications inherit lumen-parent (see the fat-jar profile) and must not pick it up.
+                -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.11.0</version>
+                    <executions>
+                        <execution>
+                            <id>resolve-artifact-path-properties</id>
+                            <goals>
+                                <goal>properties</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
