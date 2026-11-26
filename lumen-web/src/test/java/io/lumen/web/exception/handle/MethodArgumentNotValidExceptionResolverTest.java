@@ -1,7 +1,7 @@
 package io.lumen.web.exception.handle;
 
-import io.lumen.validation.ConstraintViolation;
-import io.lumen.validation.ValidationException;
+import io.lumen.web.exception.MethodArgumentNotValidException;
+import io.lumen.web.http.ErrorResponse.FieldError;
 import io.lumen.web.handler.ResponseBodyWriter;
 import io.lumen.web.http.HttpMessageConverterRegistry;
 import io.lumen.web.support.CapturingOutputStream;
@@ -17,9 +17,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class ValidationExceptionResolverTest {
+class MethodArgumentNotValidExceptionResolverTest {
 
-    private final ValidationExceptionResolver resolver = new ValidationExceptionResolver(
+    private final MethodArgumentNotValidExceptionResolver resolver = new MethodArgumentNotValidExceptionResolver(
             new ErrorResponseWriter(new ResponseBodyWriter(new HttpMessageConverterRegistry())));
 
     private HttpServletRequest request;
@@ -35,10 +35,10 @@ class ValidationExceptionResolverTest {
     }
 
     @Test
-    void resolve_validationException_writes422WithEscapedViolations() {
-        ValidationException ex = new ValidationException(List.of(
-                new ConstraintViolation("name", "must not be blank"),
-                new ConstraintViolation("title", "must not contain \"quotes\"")));
+    void resolve_methodArgumentNotValid_writes422WithEscapedViolations() {
+        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(List.of(
+                new FieldError("name", "must not be blank"),
+                new FieldError("title", "must not contain \"quotes\"")), null);
 
         boolean handled = resolver.resolve(request, response, ex);
 
@@ -52,8 +52,9 @@ class ValidationExceptionResolverTest {
     }
 
     @Test
-    void resolve_validationExceptionAsCause_isFound() {
-        ValidationException cause = new ValidationException(List.of(new ConstraintViolation("name", "required")));
+    void resolve_methodArgumentNotValidAsCause_isFound() {
+        MethodArgumentNotValidException cause = new MethodArgumentNotValidException(
+                List.of(new FieldError("name", "required")), null);
 
         assertTrue(resolver.resolve(request, response, new RuntimeException("wrapped", cause)));
         verify(response).setStatus(422);

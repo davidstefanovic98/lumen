@@ -326,7 +326,7 @@ The `@Order` on each `LumenModule` determines when its lights are registered rel
 | `LumenCacheModule` | `-1` | `CacheProcessor` added first → outermost proxy layer. |
 | `LumenSecurityModule` | `0` | `MethodSecurityProcessor` added second; registers `SecurityContextTaskDecorator`. |
 | `LumenWebModule` | `1` | `ControllerProcessor` runs after security → routes point to secured instances. |
-| `LumenValidationModule` | `2` | `DefaultValidator` registered; picked up by `WebLumenInitializer`. |
+| `LumenValidationModule` | `2` | `DefaultValidator` registered; when `lumen-web` is present, also `ValidRequestBodyValidator` (a `RequestBodyValidator`), picked up by `WebLumenInitializer`. |
 | `LumenMailModule` | `2` | `MailSender` registered. |
 | `LumenBootThymeleafModule` | `2` | `TemplateEngine` registered; `ThymeleafViewResolver` wired if `lumen-web-mvc` is present. |
 | `LumenAsyncModule` | `3` | `AsyncProcessor` and `ScheduledTaskProcessor` registered. |
@@ -391,7 +391,7 @@ When `RouteInvoker` calls a controller method, each parameter is resolved in tur
 |---|---|
 | `PathVariableArgumentResolver` | `@PathVariable` |
 | `RequestParamArgumentResolver` | `@RequestParam`, `@RequestPart` |
-| `RequestBodyArgumentResolver` | `@RequestBody`; runs `@Valid` if validator is present |
+| `RequestBodyArgumentResolver` | `@RequestBody`; applies every `RequestBodyValidator` light to the body |
 | `RequestHeaderArgumentResolver` | `@RequestHeader` |
 | `ModelAttributeArgumentResolver` | `@ModelAttribute` |
 | `HttpServletRequestArgumentResolver` | `HttpServletRequest` parameter |
@@ -404,7 +404,7 @@ Exceptions from the controller propagate to `CompositeExceptionResolver`, which 
 
 ```
 GlobalExceptionHandleResolver   — @ControllerAdvice + @ExceptionHandler
-ValidationExceptionResolver     — ValidationException → 422 (if lumen-validation present)
+MethodArgumentNotValidExceptionResolver — MethodArgumentNotValidException → 422 with violations
 FilterChainExceptionMatcher(s)  — claimed exceptions are rethrown for a servlet filter (e.g. security → ExceptionTranslationFilter)
 DefaultExceptionResolver        — @ResponseStatus on exception class, fallback 500
 ```
@@ -494,6 +494,8 @@ Null values are cached using a `NULL_MARKER` sentinel to distinguish a cached `n
 ### Validation
 
 `DefaultValidator` walks the full class hierarchy of the validated object and collects all constraint violations. Validation is triggered automatically for `@RequestBody` parameters annotated with `@Valid`. A 422 response with a JSON error body is returned when violations are found.
+
+lumen-web has no dependency on lumen-validation. It defines a `RequestBodyValidator` SPI and its own `MethodArgumentNotValidException` (422); lumen-validation implements the SPI with `ValidRequestBodyValidator`, registered only when lumen-web is on the classpath, which translates a `ValidationException` into `MethodArgumentNotValidException` (keeping it as the cause, so an `@ExceptionHandler(ValidationException.class)` still matches). A `ValidationException` thrown by application code outside `@Valid` binding is not mapped to 422 — like any other exception it's a 500 unless an `@ExceptionHandler` handles it (the same as Spring's `ConstraintViolationException`).
 
 ### Asynchronous execution
 

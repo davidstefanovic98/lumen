@@ -13,7 +13,8 @@ import java.util.function.Supplier;
  * Turns an exception into an HTTP response, in order:
  * <ol>
  *   <li>a matching {@code @ExceptionHandler} ({@link GlobalExceptionHandleResolver}), then
- *       validation failures - the specific resolvers;</li>
+ *       request-body validation failures ({@link MethodArgumentNotValidExceptionResolver}) - the
+ *       specific resolvers;</li>
  *   <li>an exception claimed by a {@link FilterChainExceptionMatcher} is rethrown, unwritten, for
  *       the servlet filter that owns it (e.g. security exceptions → ExceptionTranslationFilter).
  *       This runs <em>after</em> the specific resolvers, so a user's own handler for such an
@@ -35,10 +36,7 @@ public class CompositeExceptionResolver {
         ErrorResponseWriter errorWriter = new ErrorResponseWriter(bodyWriter);
         List<ExceptionResolver> list = new ArrayList<>();
         list.add(new GlobalExceptionHandleResolver(adviceRegistry, bodyWriter));
-
-        if (isValidationPresent()) {
-            list.add(new ValidationExceptionResolver(errorWriter));
-        }
+        list.add(new MethodArgumentNotValidExceptionResolver(errorWriter));
 
         this.resolvers = list;
         this.filterChainMatchers = filterChainMatchers;
@@ -71,14 +69,5 @@ public class CompositeExceptionResolver {
             if (t.getCause() == t) break;
         }
         return false;
-    }
-
-    private boolean isValidationPresent() {
-        try {
-            Class.forName("io.lumen.validation.ValidationException");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
     }
 }
