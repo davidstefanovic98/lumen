@@ -12,8 +12,6 @@ import jakarta.servlet.ServletContext;
 @Order(1)
 public class WebLumenInitializer implements LumenInitializer {
 
-    private static final String VALIDATOR_CLASS = "io.lumen.validation.Validator";
-
     private final CompositeMethodArgumentResolver argumentResolver;
     private final HttpMessageConverterRegistry converterRegistry;
     private final ServletContext servletContext;
@@ -36,9 +34,10 @@ public class WebLumenInitializer implements LumenInitializer {
         argumentResolver.addResolver(new RequestParamArgumentResolver());
         argumentResolver.addResolver(new RequestHeaderArgumentResolver());
 
-        RequestBodyArgumentResolver bodyResolver = new RequestBodyArgumentResolver(converterRegistry);
-        wireValidator(bodyResolver);
-        argumentResolver.addResolver(bodyResolver);
+        // onStartup() runs after container.initialize(), so every RequestBodyValidator light -
+        // contributed by a module (e.g. lumen-validation) or by the user - already exists here.
+        argumentResolver.addResolver(new RequestBodyArgumentResolver(converterRegistry,
+                container.getLights(RequestBodyValidator.class)));
 
         argumentResolver.addResolver(new HttpServletRequestArgumentResolver());
         argumentResolver.addResolver(new HttpServletResponseArgumentResolver());
@@ -46,17 +45,5 @@ public class WebLumenInitializer implements LumenInitializer {
         String rawContextPath = servletContext.getContextPath();
         String contextPath = rawContextPath.isEmpty() ? "/" : rawContextPath;
         logger.info("Web Module initialized for context: {}", contextPath);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void wireValidator(RequestBodyArgumentResolver bodyResolver) {
-        try {
-            Class<Object> validatorClass = (Class<Object>) Class.forName(VALIDATOR_CLASS);
-            if (container.hasLight(validatorClass)) {
-                bodyResolver.setValidator(container.getLight(validatorClass));
-            }
-        } catch (ClassNotFoundException ignored) {
-            // lumen-validation not on classpath — @Valid will be silently ignored
-        }
     }
 }

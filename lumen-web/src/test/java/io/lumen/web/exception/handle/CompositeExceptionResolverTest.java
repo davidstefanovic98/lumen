@@ -104,6 +104,18 @@ class CompositeExceptionResolverTest {
     }
 
     @Test
+    void methodArgumentNotValid_isWrittenAs422WithViolations_withNoValidationModuleOnTheClasspath() throws Exception {
+        // lumen-web no longer depends on lumen-validation at all; this resolver must be wired
+        // unconditionally rather than behind a classpath probe.
+        resolver().resolve(request, response, new io.lumen.web.exception.MethodArgumentNotValidException(
+                List.of(new io.lumen.web.http.ErrorResponse.FieldError("name", "must not be blank")), null));
+
+        verify(response).setStatus(422);
+        assertEquals("{\"status\":422,\"error\":\"Unprocessable Entity\",\"message\":\"Validation failed with 1 violation(s)\","
+                + "\"violations\":[{\"field\":\"name\",\"message\":\"must not be blank\"}]}", body.body());
+    }
+
+    @Test
     void matchers_areCollectedLazilyAndOnlyWhenNeeded() throws Exception {
         AtomicInteger lookups = new AtomicInteger();
         CompositeExceptionResolver resolver = new CompositeExceptionResolver(

@@ -739,12 +739,17 @@ A 422 response is returned automatically when validation fails, with a JSON body
 
 ```json
 {
-  "errors": [
+  "status": 422,
+  "error": "Unprocessable Entity",
+  "message": "Validation failed with 2 violation(s)",
+  "violations": [
     { "field": "email", "message": "must be a valid email address" },
     { "field": "password", "message": "size must be between 8 and 64" }
   ]
 }
 ```
+
+Only `@Valid @RequestBody` failures are mapped to 422. A `ValidationException` thrown by your own code (e.g. calling `Validator.validateAndThrow()` in a service) is a 500 unless an `@ExceptionHandler` handles it.
 
 ---
 
@@ -1208,7 +1213,7 @@ All properties are loaded from `application.properties` on the classpath. Profil
 
 | Exception | HTTP Status | Description |
 |---|---|---|
-| `ValidationException` | 422 | One or more constraint violations found. Carries the list of `ConstraintViolation` objects. |
+| `ValidationException` | 500 unless handled | One or more constraint violations found. Carries the list of `ConstraintViolation` objects. When raised for a `@Valid @RequestBody` argument it arrives as the cause of lumen-web's `MethodArgumentNotValidException` (422). |
 
 ### Mail exceptions (`lumen-mail`)
 

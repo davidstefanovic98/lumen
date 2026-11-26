@@ -23,6 +23,14 @@
             <artifactId>lumen-core</artifactId>
             <version>1.0.2</version>
         </dependency>
+        <!-- Optional: only for the RequestBodyValidator bridge (io.lumen.validation.web), which
+             LumenValidationModule registers only when lumen-web is on the classpath. -->
+        <dependency>
+            <groupId>io.lumen</groupId>
+            <artifactId>lumen-web</artifactId>
+            <version>1.0.2</version>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

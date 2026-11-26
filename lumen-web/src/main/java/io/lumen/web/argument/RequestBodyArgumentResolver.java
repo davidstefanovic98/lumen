@@ -5,26 +5,19 @@ import io.lumen.web.http.HttpMessageConverterRegistry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.List;
 import java.util.Map;
 
 public class RequestBodyArgumentResolver implements MethodArgumentResolver {
 
-    private static final String VALID_ANNOTATION   = "io.lumen.validation.annotation.Valid";
-    private static final String VALIDATOR_INTERFACE = "io.lumen.validation.Validator";
-
     private final HttpMessageConverterRegistry converterRegistry;
-    // Held as Object so this class loads cleanly when lumen-validation is absent.
-    private Object validator;
+    private final List<RequestBodyValidator> validators;
 
-    public RequestBodyArgumentResolver(HttpMessageConverterRegistry converterRegistry) {
+    public RequestBodyArgumentResolver(HttpMessageConverterRegistry converterRegistry,
+                                       List<RequestBodyValidator> validators) {
         this.converterRegistry = converterRegistry;
-    }
-
-    public void setValidator(Object validator) {
-        this.validator = validator;
+        this.validators = List.copyOf(validators);
     }
 
     @Override
@@ -40,31 +33,12 @@ public class RequestBodyArgumentResolver implements MethodArgumentResolver {
                 request
         );
 
-        if (body != null && validator != null && hasValidAnnotation(parameter)) {
-            validateAndThrow(body);
+        if (body != null) {
+            for (RequestBodyValidator validator : validators) {
+                validator.validate(body, parameter);
+            }
         }
 
         return body;
-    }
-
-    private boolean hasValidAnnotation(Parameter parameter) {
-        for (Annotation ann : parameter.getAnnotations()) {
-            if (ann.annotationType().getName().equals(VALID_ANNOTATION)) return true;
-        }
-        return false;
-    }
-
-    private void validateAndThrow(Object body) {
-        try {
-            Class<?> validatorClass = Class.forName(VALIDATOR_INTERFACE);
-            Method method = validatorClass.getMethod("validateAndThrow", Object.class);
-            method.invoke(validator, body);
-        } catch (java.lang.reflect.InvocationTargetException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof RuntimeException re) throw re;
-            throw new RuntimeException(cause);
-        } catch (Exception e) {
-            throw new RuntimeException("Validation invocation failed", e);
-        }
     }
 }
